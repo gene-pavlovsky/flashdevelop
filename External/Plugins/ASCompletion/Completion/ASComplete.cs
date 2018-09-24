@@ -2069,7 +2069,7 @@ namespace ASCompletion.Completion
                          * there can be problems in `tmpClass.ResolveExtends()` because `tmpClass` contains a link to the real file with origin declaration, like `Null<T>`, not current file
                          */
                         tmpClass = (ClassModel) tmpClass.Clone();
-                        tmpClass.InFile = result.InFile;
+                        tmpClass.InFile = result.InFile ?? ctx.CurrentModel;
                         tmpClass.ResolveExtends();
                     }
                     while (!tmpClass.IsVoid())
@@ -2872,17 +2872,13 @@ namespace ASCompletion.Completion
                         var vars = local.LocalVars.Items.Where(it => it.Name == token).ToList();
                         if (vars.Count > 0)
                         {
-                            var checkFunction = local.SubExpressions != null && local.SubExpressions.Count == 1
-                                && !string.IsNullOrEmpty(local.Value) && local.Value.IndexOf('.') == local.Value.IndexOfOrdinal(".#0~")
-                                // array access check
-                                && local.SubExpressions[0][0] != '[';
                             MemberModel var = null;
                             if (vars.Count > 1)
                             {
                                 vars.Sort((l, r) => l.LineFrom > r.LineFrom ? -1 : l.LineFrom < r.LineFrom ? 1 : 0);
-                                var = vars.FirstOrDefault(it => it.LineTo < local.LineTo && (!checkFunction || it.Flags.HasFlag(FlagType.Function)));
+                                var = vars.FirstOrDefault(it => it.LineTo < local.LineTo);
                             }
-                            if (var == null) var = vars.FirstOrDefault(it => !checkFunction || it.Flags.HasFlag(FlagType.Function));
+                            if (var == null) var = vars.FirstOrDefault();
                             if (var != null)
                             {
                                 result.Member = var;
@@ -3096,7 +3092,7 @@ namespace ASCompletion.Completion
             var type = ctx.ResolveToken(value, ctx.CurrentModel);
             if (type.IsVoid())
             {
-                if (!string.IsNullOrEmpty(value) && var.ValueEndPosition != -1
+                if (!string.IsNullOrEmpty(value) && value != "null" && var.ValueEndPosition != -1
                     && char.IsLetter(value[0]) && (var.Name != value && (var.Name[0] != '?' || var.Name != '?' + value)))
                     type = GetExpressionType(ASContext.CurSciControl, var.ValueEndPosition + 1, true).Type ?? ClassModel.VoidClass;
                 if (type.IsVoid()) type = ctx.ResolveType(ctx.Features.dynamicKey, null);
