@@ -17,7 +17,7 @@ namespace HaXeContext.Generators
 {
     public enum GeneratorJob
     {
-        ConstructorOfEnum,
+        EnumConstructor,
         Switch,
     }
 
@@ -26,6 +26,8 @@ namespace HaXeContext.Generators
         /// <inheritdoc />
         protected override void ContextualGenerator(ScintillaControl sci, int position, ASResult expr, List<ICompletionListItem> options)
         {
+            // for example: @:meta|Tag
+            if (expr.Context.Separator == ":" && expr.Context.SeparatorPosition > 0 && sci.CharAt(expr.Context.SeparatorPosition - 1) == '@') return;
             var ctx = ASContext.Context;
             var currentClass = ctx.CurrentClass;
             if (currentClass.Flags.HasFlag(FlagType.Enum | FlagType.TypeDef) || currentClass.Flags.HasFlag(FlagType.Interface))
@@ -49,14 +51,6 @@ namespace HaXeContext.Generators
         }
 
         /// <inheritdoc />
-        protected override bool CanShowCreateNewClass(ScintillaControl sci, int position, ASResult expr, FoundDeclaration found)
-        {
-            // for example: @:meta|Tag
-            if (expr.Context.Separator == ":" && expr.Context.SeparatorPosition > 0 && sci.CharAt(expr.Context.SeparatorPosition - 1) == '@') return false;
-            return base.CanShowCreateNewClass(sci, position, expr, found);
-        }
-
-        /// <inheritdoc />
         protected override bool CanShowImplementInterfaceList(ScintillaControl sci, int position, ASResult expr, FoundDeclaration found)
         {
             return expr.Context.Separator != "=" && base.CanShowImplementInterfaceList(sci, position, expr, found);
@@ -77,7 +71,17 @@ namespace HaXeContext.Generators
             var inClass = expr.RelClass ?? found.InClass;
             if (inClass.Flags.HasFlag(FlagType.Enum) && !expr.IsStatic) return false;
             if (inClass.Flags.HasFlag(FlagType.TypeDef) && expr.IsStatic) return false;
-            return base.CanShowNewMethodList(sci, position, expr, found);
+            return !found.InClass.IsVoid()
+                && !ASContext.Context.CodeComplete.PositionIsBeforeBody(sci, position, found.InClass)
+                && base.CanShowNewMethodList(sci, position, expr, found);
+        }
+
+        /// <inheritdoc />
+        protected override bool CanShowGetSetList(ScintillaControl sci, int position, ASResult expr, FoundDeclaration found)
+        {
+            var inClass = expr.RelClass ?? found.InClass;
+            if (inClass.Flags.HasFlag(FlagType.Abstract)) return false;
+            return base.CanShowGetSetList(sci, position, expr, found);
         }
 
         /// <inheritdoc />
@@ -375,7 +379,7 @@ namespace HaXeContext.Generators
             if (inClass != null && inClass.Flags.HasFlag(FlagType.Enum) && expr.IsStatic)
             {
                 var label = TextHelper.GetString("ASCompletion.Label.GenerateConstructor");
-                options.Add(new GeneratorItem(label, GeneratorJob.ConstructorOfEnum, () => Generate(GeneratorJob.ConstructorOfEnum, sci, expr)));
+                options.Add(new GeneratorItem(label, GeneratorJob.EnumConstructor, () => Generate(GeneratorJob.EnumConstructor, sci, expr)));
             }
             else base.ShowNewMethodList(sci, expr, found, options);
         }
@@ -386,7 +390,7 @@ namespace HaXeContext.Generators
             if (inClass != null && inClass.Flags.HasFlag(FlagType.Enum) && expr.IsStatic)
             {
                 var label = TextHelper.GetString("ASCompletion.Label.GenerateConstructor");
-                options.Add(new GeneratorItem(label, GeneratorJob.ConstructorOfEnum, () => Generate(GeneratorJob.ConstructorOfEnum, sci, expr)));
+                options.Add(new GeneratorItem(label, GeneratorJob.EnumConstructor, () => Generate(GeneratorJob.EnumConstructor, sci, expr)));
             }
             else base.ShowNewVarList(sci, expr, found, options);
         }
@@ -477,7 +481,7 @@ namespace HaXeContext.Generators
         {
             switch (job)
             {
-                case GeneratorJob.ConstructorOfEnum:
+                case GeneratorJob.EnumConstructor:
                     sci.BeginUndoAction();
                     try
                     {
@@ -489,7 +493,7 @@ namespace HaXeContext.Generators
                     sci.BeginUndoAction();
                     try
                     {
-                        GenerateSwitch(sci, expr, expr.InFile.Context.ResolveType(expr.Member.Type, expr.InFile));
+                        GenerateSwitch(sci, expr, ASContext.Context.ResolveType(expr.Member.Type, ASContext.Context.CurrentModel));
                     }
                     finally { sci.EndUndoAction(); }
                     break;

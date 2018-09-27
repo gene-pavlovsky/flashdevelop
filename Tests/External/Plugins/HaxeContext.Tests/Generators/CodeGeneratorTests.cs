@@ -184,7 +184,6 @@ namespace HaXeContext.Generators
             }
         }
 
-
         static IEnumerable<TestCaseData> ContextualGeneratorForOptionParametersTestCases
         {
             get
@@ -511,6 +510,80 @@ namespace HaXeContext.Generators
                     .Returns(ReadAllText("AfterContextualGeneratorTests_issue2303_3"))
                     .SetName("Auto import. Issue 2303. Case 3.")
                     .SetDescription("https://github.com/fdorg/flashdevelop/issues/2303");
+            }
+        }
+
+        static IEnumerable<TestCaseData> Issue2407TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2407_1", GeneratorJobType.Variable , false)
+                    .Returns(null)
+                    .SetName("@:me$(EntryPoint)ta Issue 2407. Case 1.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2407_1", GeneratorJobType.VariablePublic, false)
+                    .Returns(null)
+                    .SetName("@:me$(EntryPoint)ta Issue 2407. Case 2.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2407_1", GeneratorJobType.Function, false)
+                    .Returns(null)
+                    .SetName("@:me$(EntryPoint)ta Issue 2407. Case 3.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2407_1", GeneratorJobType.FunctionPublic, false)
+                    .Returns(null)
+                    .SetName("@:me$(EntryPoint)ta Issue 2407. Case 4.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2407_1", GeneratorJobType.Class, false)
+                    .Returns(null)
+                    .SetName("@:me$(EntryPoint)ta Issue 2407. Case 5.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+            }
+        }
+
+        static IEnumerable<TestCaseData> Issue2411TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2411_1", GeneratorJobType.Variable , false)
+                    .Returns(null)
+                    .SetName("abstract AFoo(Int) fr$(EntryPoint)om. Issue 2411. Case 1.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2411_1", GeneratorJobType.VariablePublic, false)
+                    .Returns(null)
+                    .SetName("abstract AFoo(Int) fr$(EntryPoint)om. Issue 2411. Case 2.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2411_1", GeneratorJobType.Function, false)
+                    .Returns(null)
+                    .SetName("abstract AFoo(Int) fr$(EntryPoint)om. Issue 2411. Case 3.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2411_1", GeneratorJobType.FunctionPublic, false)
+                    .Returns(null)
+                    .SetName("abstract AFoo(Int) fr$(EntryPoint)om. Issue 2411. Case 4.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2411_1", GeneratorJobType.Class, false)
+                    .Returns(null)
+                    .SetName("abstract AFoo(Int) fr$(EntryPoint)om. Issue 2411. Case 5.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2411_2", GeneratorJobType.Variable , false)
+                    .Returns(null)
+                    .SetName("abstract AFoo(Int) t$(EntryPoint)o. Issue 2411. Case 6.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2411_2", GeneratorJobType.VariablePublic, false)
+                    .Returns(null)
+                    .SetName("abstract AFoo(Int) t$(EntryPoint)o. Issue 2411. Case 7.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2411_2", GeneratorJobType.Function, false)
+                    .Returns(null)
+                    .SetName("abstract AFoo(Int) t$(EntryPoint)o. Issue 2411. Case 8.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2411_2", GeneratorJobType.FunctionPublic, false)
+                    .Returns(null)
+                    .SetName("abstract AFoo(Int) t$(EntryPoint)o. Issue 2411. Case 9.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2411_2", GeneratorJobType.Class, false)
+                    .Returns(null)
+                    .SetName("abstract AFoo(Int) t$(EntryPoint)o. Issue 2411. Case 10.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2407");
             }
         }
 
@@ -1143,6 +1216,25 @@ namespace HaXeContext.Generators
             }
         }
 
+        static IEnumerable<TestCaseData> GenerateGetterSetterInAbstractIssue2403TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeGenerateGetterSetter_in_abstract_issue2403_1", GeneratorJobType.GetterSetter, false)
+                    .Returns(null)
+                    .SetName("Generate getter and setter. Issue 2403. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2403");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_in_abstract_issue2403_1", GeneratorJobType.Getter, false)
+                    .Returns(null)
+                    .SetName("Generate getter. Issue 2403. Case 2")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2403");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_in_abstract_issue2403_1", GeneratorJobType.Setter, false)
+                    .Returns(null)
+                    .SetName("Generate setter. Issue 2403. Case 3")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2403");
+            }
+        }
+
         [
             Test,
             TestCaseSource(nameof(ContextualGeneratorTestCases)),
@@ -1157,6 +1249,8 @@ namespace HaXeContext.Generators
             TestCaseSource(nameof(Issue2297TestCases)),
             TestCaseSource(nameof(Issue2299TestCases)),
             TestCaseSource(nameof(Issue2303TestCases)),
+            TestCaseSource(nameof(Issue2407TestCases)),
+            TestCaseSource(nameof(Issue2411TestCases)),
             //TestCaseSource(nameof(AssignStatementToVarIssue220TestCases)),
             TestCaseSource(nameof(AssignStatementToVarIssue1764TestCases)),
             TestCaseSource(nameof(AssignStatementToVarIssue1999TestCases)),
@@ -1185,6 +1279,7 @@ namespace HaXeContext.Generators
             TestCaseSource(nameof(ImplementInterfaceIssue2264TestCases)),
             TestCaseSource(nameof(GenerateEventHandlerIssue751TestCases)),
             TestCaseSource(nameof(CreateNewClassIssue2393TestCases)),
+            TestCaseSource(nameof(GenerateGetterSetterInAbstractIssue2403TestCases)),
         ]
         public string ContextualGenerator(string fileName, GeneratorJobType job, bool hasGenerator) => ContextualGenerator(sci, fileName, job, hasGenerator);
 
