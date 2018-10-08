@@ -1913,7 +1913,10 @@ namespace ASCompletion.Completion
                     }
                 }
 
-                [Test, TestCaseSource(nameof(AS3TestCases))]
+                [
+                    Test, 
+                    TestCaseSource(nameof(AS3TestCases)),
+                ]
                 public string AS3(string sourceText, string[] autoRemove) => AS3Impl(sourceText, autoRemove, sci);
 
                 static IEnumerable<TestCaseData> HaxeTestCases
@@ -3330,11 +3333,60 @@ namespace ASCompletion.Completion
                     }
                 }
 
+                static IEnumerable<TestCaseData> GenerateEventHandlerIssue2421TestCases
+                {
+                    get
+                    {
+                        yield return new TestCaseData("BeforeGenerateEventHandler_issue2421_1", GeneratorJobType.ComplexEvent, true)
+                            .Returns(ReadAllTextAS3("AfterGenerateEventHandler_issue2421_1"))
+                            .SetName("Generate event handler. Issue 2421. Case 1")
+                            .SetDescription("https://github.com/fdorg/flashdevelop/issues/2421");
+                    }
+                }
+
+                static IEnumerable<TestCaseData> ConvertToConstIssue2406TestCases
+                {
+                    get
+                    {
+                        yield return new TestCaseData("BeforeConvertToConst_issue2406_1", GeneratorJobType.ConvertToConst, true)
+                            .Returns(ReadAllTextAS3("AfterConvertToConst_issue2406_1"))
+                            .SetName("Convert to const. Issue 2406. Case 1")
+                            .SetDescription("https://github.com/fdorg/flashdevelop/issues/2406");
+                        yield return new TestCaseData("BeforeConvertToConst_issue2406_2", GeneratorJobType.ConvertToConst, true)
+                            .Returns(ReadAllTextAS3("AfterConvertToConst_issue2406_2"))
+                            .SetName("Convert to const. Issue 2406. Case 2")
+                            .SetDescription("https://github.com/fdorg/flashdevelop/issues/2406");
+                        yield return new TestCaseData("BeforeConvertToConst_issue2406_3", GeneratorJobType.ConvertToConst, true)
+                            .Returns(ReadAllTextAS3("AfterConvertToConst_issue2406_3"))
+                            .SetName("Convert to const. Issue 2406. Case 3")
+                            .SetDescription("https://github.com/fdorg/flashdevelop/issues/2406");
+                        yield return new TestCaseData("BeforeConvertToConst_issue2406_4", GeneratorJobType.ConvertToConst, true)
+                            .Returns(ReadAllTextAS3("AfterConvertToConst_issue2406_4"))
+                            .SetName("Convert to const. Issue 2406. Case 4")
+                            .SetDescription("https://github.com/fdorg/flashdevelop/issues/2406");
+                        yield return new TestCaseData("BeforeConvertToConst_issue2406_5", GeneratorJobType.ConvertToConst, true)
+                            .Returns(ReadAllTextAS3("AfterConvertToConst_issue2406_5"))
+                            .SetName("Convert to const. Issue 2406. Case 5")
+                            .SetDescription("https://github.com/fdorg/flashdevelop/issues/2406");
+                        yield return new TestCaseData("BeforeConvertToConst_issue2406_6", GeneratorJobType.ConvertToConst, true)
+                            .Returns(ReadAllTextAS3("AfterConvertToConst_issue2406_6"))
+                            .SetName("Convert to const. Issue 2406. Case 6")
+                            .SetDescription("https://github.com/fdorg/flashdevelop/issues/2406");
+                        yield return new TestCaseData("BeforeConvertToConst_issue2406_7", GeneratorJobType.ConvertToConst, true)
+                            .Returns(ReadAllTextAS3("AfterConvertToConst_issue2406_7"))
+                            .SetName("Convert to const. Issue 2406. Case 7")
+                            .Ignore("")
+                            .SetDescription("https://github.com/fdorg/flashdevelop/issues/2406");
+                    }
+                }
+
                 [
                     Test, 
                     TestCaseSource(nameof(ContextualGeneratorTestCases)),
                     TestCaseSource(nameof(Issue2297TestCases)),
                     TestCaseSource(nameof(Issue2346TestCases)),
+                    TestCaseSource(nameof(GenerateEventHandlerIssue2421TestCases)),
+                    TestCaseSource(nameof(ConvertToConstIssue2406TestCases)),
                 ]
                 public string ContextualGenerator(string fileName, GeneratorJobType job, bool hasGenerator) => Common(sci, fileName, job, hasGenerator);
 
@@ -3342,6 +3394,25 @@ namespace ASCompletion.Completion
                 {
                     SetCurrentFileName(GetFullPathAS3(fileName));
                     SetSrc(sci, ReadAllTextAS3(fileName));
+                    var handler = Substitute.For<IEventHandler>();
+                    handler
+                        .When(it => it.HandleEvent(Arg.Any<object>(), Arg.Any<NotifyEvent>(), Arg.Any<HandlingPriority>()))
+                        .Do(it =>
+                        {
+                            var e = it.ArgAt<NotifyEvent>(1);
+                            switch (e.Type)
+                            {
+                                case EventType.Command:
+                                    var de = (DataEvent) e;
+                                    if (de.Action == "ProjectManager.LineEntryDialog")
+                                    {
+                                        EventManager.RemoveEventHandler(handler);
+                                        e.Handled = true;
+                                    }
+                                    break;
+                            }
+                        });
+                    EventManager.AddEventHandler(handler, EventType.Command);
                     var options = new List<ICompletionListItem>();
                     ASGenerator.ContextualGenerator(sci, options);
                     if (hasGenerator)
@@ -3357,8 +3428,10 @@ namespace ASCompletion.Completion
                             return ctx.ResolveImports(it.ArgAt<FileModel>(0));
                         });
                         var value = item.Value;
+                        EventManager.RemoveEventHandler(handler);
                         return sci.Text;
                     }
+                    EventManager.RemoveEventHandler(handler);
                     if (job == (GeneratorJobType)(-1)) Assert.IsEmpty(options);
                     if (options.Count > 0) Assert.IsFalse(options.Any(it => ((GeneratorItem)it).Job == job));
                     return null;
