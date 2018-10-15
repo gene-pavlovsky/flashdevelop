@@ -139,14 +139,20 @@ namespace HaXeContext.Completion
         /// <inheritdoc />
         protected override void InferVariableType(ScintillaControl sci, ASExpr local, MemberModel var)
         {
+            var ctx = ASContext.Context;
             var line = sci.GetLine(var.LineFrom);
             var m = Regex.Match(line, "\\s*for\\s*\\(\\s*" + var.Name + "\\s*in\\s*");
             if (!m.Success)
             {
                 base.InferVariableType(sci, local, var);
+                if (string.IsNullOrEmpty(var.Type) && (var.Flags.HasFlag(FlagType.Variable)
+                                                       || var.Flags.HasFlag(FlagType.Getter)
+                                                       || var.Flags.HasFlag(FlagType.Setter)))
+                {
+                    var.Type = ctx.ResolveType(ctx.Features.dynamicKey, null).Name;
+                }
                 return;
             }
-            var ctx = ASContext.Context;
             var currentModel = ctx.CurrentModel;
             var rvalueStart = sci.PositionFromLine(var.LineFrom) + m.Index + m.Length;
             var methodEndPosition = sci.LineEndPosition(ctx.CurrentMember.LineTo);
@@ -281,6 +287,11 @@ namespace HaXeContext.Completion
             var word = sci.GetWordRight(rvalueStart, true);
             // for example: var v = v;
             if (word == local.Value) return;
+            if (word == "new")
+            {
+                rvalueStart = sci.WordEndPosition(rvalueStart, false) + 1;
+                word = sci.GetWordRight(rvalueStart, true);
+            }
             var ctx = ASContext.Context;
             /**
              * for example:
@@ -299,40 +310,30 @@ namespace HaXeContext.Completion
             }
             if (var.Flags.HasFlag(FlagType.LocalVar))
             {
-                InferLocalVariableType(sci, declarationLine, rvalueStart, local, var);
+                if (!InferVariableType(sci, rvalueStart, var)) base.InferVariableType(sci, declarationLine, rvalueStart, local, var);
                 return;
             }
-            if (var.Flags.HasFlag(FlagType.Variable))
+            if (var.Flags.HasFlag(FlagType.Variable) || var.Flags.HasFlag(FlagType.Getter) || var.Flags.HasFlag(FlagType.Setter))
             {
-                var rvalueEnd = ExpressionEndPosition(sci, rvalueStart, true);
-                var expr = GetExpressionType(sci, rvalueEnd, false, true);
-                var type = expr.Type;
-                if (type == null || type.IsVoid())
-                {
-                    if (expr.Member != null) type = ctx.ResolveType(expr.Member.Type, ctx.CurrentModel);
-                    else
-                    {
-                        var token = sci.GetTextRange(rvalueStart, rvalueEnd);
-                        type = ctx.ResolveToken(token, ctx.CurrentModel);
-                    }
-                }
-                if (type.IsVoid()) type = ctx.ResolveType(ctx.Features.dynamicKey, null);
-                var.Type = type.QualifiedName;
-                var.Flags |= FlagType.Inferred;
+                InferVariableType(sci, rvalueStart, var);
             }
         }
 
-        void InferLocalVariableType(ScintillaControl sci, string declarationLine, int rvalueStart, ASExpr local, MemberModel var)
+        bool InferVariableType(ScintillaControl sci, int rvalueStart, MemberModel var)
         {
+            var ctx = ASContext.Context;
             var rvalueEnd = ExpressionEndPosition(sci, rvalueStart, sci.LineEndPosition(var.LineTo), true);
             var characterClass = ScintillaControl.Configuration.GetLanguage(sci.ConfigurationLanguage).characterclass.Characters;
-            var methodEndPosition = sci.LineEndPosition(ASContext.Context.CurrentMember.LineTo);
             var arrCount = 0;
             var parCount = 0;
             var genCount = 0;
             var hadDot = false;
             var isInExpr = false;
-            for (var i = rvalueEnd; i < methodEndPosition; i++)
+            var lineTo = var.Flags.HasFlag(FlagType.LocalVar) || var.Flags.HasFlag(FlagType.ParameterVar)
+                ? ctx.CurrentMember.LineTo
+                : ctx.CurrentClass.LineTo;
+            var endPosition = sci.LineEndPosition(lineTo);
+            for (var i = rvalueEnd; i < endPosition; i++)
             {
                 if (arrCount == 0 && parCount == 0 && genCount == 0)
                 {
@@ -388,7 +389,7 @@ namespace HaXeContext.Completion
                 if (c == '.')
                 {
                     hadDot = true;
-                    rvalueEnd = ExpressionEndPosition(sci, i + 1, methodEndPosition);
+                    rvalueEnd = ExpressionEndPosition(sci, i + 1, endPosition);
                 }
                 isInExpr = true;
             }
@@ -397,15 +398,15 @@ namespace HaXeContext.Completion
             {
                 var.Type = expr.Type.QualifiedName;
                 var.Flags |= FlagType.Inferred;
-                return;
+                return true;
             }
             if (expr.Member != null)
             {
                 var.Type = expr.Member.Type;
                 var.Flags |= FlagType.Inferred;
-                return;
+                return true;
             }
-            base.InferVariableType(sci, declarationLine, rvalueStart, local, var);
+            return false;
         }
 
         static ClassModel InferTypedefType(ScintillaControl sci, MemberModel expr)
@@ -451,6 +452,48 @@ namespace HaXeContext.Completion
             {
                 var ctx = ASContext.Context;
                 var features = ctx.Features;
+                // for example: 1.0.<complete>, 5e-324.<complete>
+                if (char.IsDigit(expression, 0)
+                    // for example: -1.<complete>
+                    || (expression.Length > 1 && expression[0] == '-' && char.IsDigit(expression, 1))
+                    // for example: --1.<complete>
+                    || (expression.Length > 2 && expression[0] == '-' && expression[1] == '-' && char.IsDigit(expression, 2)))
+                {
+                    int p;
+                    int pe1;
+                    var pe2 = -1;
+                    if ((pe1 = expression.IndexOfOrdinal("e-")) != -1 || (pe2 = expression.IndexOfOrdinal("e+")) != -1)
+                    {
+                        p = expression.IndexOf('.');
+                        if (p == -1) p = expression.Length - 1;
+                        else if (p < pe1 || p < pe2)
+                        {
+                            var p2 = expression.IndexOf('.', p + 1);
+                            p = p2 != -1 ? p2 : expression.Length - 1;
+                        }
+                    }
+                    else
+                    {
+                        p = expression.IndexOf('.');
+                        if (p == expression.Length - 1) p = -1;
+                        else if (p != -1)
+                        {
+                            // for example: 1.0.<complete>
+                            if (char.IsDigit(expression[p + 1]))
+                            {
+                                var p2 = expression.IndexOf('.', p + 1);
+                                p = p2 != -1 ? p2 : expression.Length - 1;
+                            }
+                            // for example: -1.extensionMethod().<complete>
+                            else p = -1;
+                        }
+                    }
+                    if (p != -1)
+                    {
+                        expression = "Float.#." + expression.Substring(p + 1);
+                        return base.EvalExpression(expression, context, inFile, inClass, complete, asFunction, filterVisibility);
+                    }
+                }
                 if (context.SubExpressions != null)
                 {
                     var count = context.SubExpressions.Count - 1;

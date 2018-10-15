@@ -81,13 +81,16 @@ namespace HaXeContext.Generators
                     .SetDescription("https://github.com/fdorg/flashdevelop/issues/2009");
                 yield return new TestCaseData("BeforeContextualGeneratorTests_GenerateFunction_1", GeneratorJobType.Function, true)
                     .Returns(ReadAllText("AfterContextualGeneratorTests_GenerateFunction_1"))
-                    .SetName("fo|o((v is String)). Generate function. Case 1");
+                    .SetName("fo|o(1, 1.0, (v is String)). Generate function. Case 1");
                 yield return new TestCaseData("BeforeContextualGeneratorTests_GenerateFunction_2", GeneratorJobType.Function, true)
                     .Returns(ReadAllText("AfterContextualGeneratorTests_GenerateFunction_2"))
                     .SetName("Generate function with many arguments. Case 2");
                 yield return new TestCaseData("BeforeContextualGeneratorTests_GenerateFunction_3", GeneratorJobType.Function, true)
                     .Returns(ReadAllText("AfterContextualGeneratorTests_GenerateFunction_3"))
-                    .SetName("fo|o(1 < 2 && 1 > 0 ? 1 : 0). Generate function. Case 3");
+                    .SetName("fo|o(1 < 2 && 1 > 0 ? 1.0 : 0.0). Generate function. Case 3");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_GenerateFunction_3_1", GeneratorJobType.Function, true)
+                    .Returns(ReadAllText("AfterContextualGeneratorTests_GenerateFunction_3_1"))
+                    .SetName("fo|o(1 < 2 && 1 > 0 ? 1 : 0). Generate function. Case 3.1");
                 yield return new TestCaseData("BeforeContextualGeneratorTests_GenerateFunction_4", GeneratorJobType.Function, true)
                     .Returns(ReadAllText("AfterContextualGeneratorTests_GenerateFunction_4"))
                     .SetName("fo|o(this.bar().x). Generate function . Case 4");
@@ -137,7 +140,11 @@ namespace HaXeContext.Generators
                     .SetDescription("https://github.com/fdorg/flashdevelop/issues/1738");
                 yield return new TestCaseData("BeforeGenerateConstructor_issue1738_3", GeneratorJobType.ChangeConstructorDecl, true)
                     .Returns(ReadAllText("AfterGenerateConstructor_issue1738_3"))
-                    .SetName("Change constructor declaration")
+                    .SetName("Change constructor declaration. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/1738");
+                yield return new TestCaseData("BeforeGenerateConstructor_issue1738_3_1", GeneratorJobType.ChangeConstructorDecl, true)
+                    .Returns(ReadAllText("AfterGenerateConstructor_issue1738_3_1"))
+                    .SetName("Change constructor declaration. Case 2")
                     .SetDescription("https://github.com/fdorg/flashdevelop/issues/1738");
                 yield return new TestCaseData("BeforeGenerateConstructor_issue1738_4", GeneratorJobType.Constructor, false)
                     .Returns(null)
@@ -150,6 +157,9 @@ namespace HaXeContext.Generators
                     .SetDescription("https://github.com/fdorg/flashdevelop/issues/1738");
                 yield return new TestCaseData("BeforeGenerateConstructor_issue1738_7", GeneratorJobType.ChangeConstructorDecl, true)
                     .Returns(ReadAllText("AfterGenerateConstructor_issue1738_7"))
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/1738");
+                yield return new TestCaseData("BeforeGenerateConstructor_issue1738_7_1", GeneratorJobType.ChangeConstructorDecl, true)
+                    .Returns(ReadAllText("AfterGenerateConstructor_issue1738_7_1"))
                     .SetDescription("https://github.com/fdorg/flashdevelop/issues/1738");
                 yield return new TestCaseData("BeforeGenerateConstructor_issue1738_8", GeneratorJobType.ChangeConstructorDecl, false)
                     .Returns(null)
@@ -335,6 +345,10 @@ namespace HaXeContext.Generators
                 yield return new TestCaseData("BeforeContextualGeneratorTests_issue2069_7", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterContextualGeneratorTests_issue2069_7"))
                     .SetName("Issue2069. Case 7.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2069");
+                yield return new TestCaseData("BeforeContextualGeneratorTests_issue2069_7_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterContextualGeneratorTests_issue2069_7_1"))
+                    .SetName("Issue2069. Case 7.1.")
                     .SetDescription("https://github.com/fdorg/flashdevelop/issues/2069");
                 yield return new TestCaseData("BeforeContextualGeneratorTests_issue2069_8", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterContextualGeneratorTests_issue2069_8"))
@@ -703,6 +717,9 @@ namespace HaXeContext.Generators
                 yield return new TestCaseData("BeforeAssignStatementToVar_inferParameterVar_2", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterAssignStatementToVar_inferParameterVar_2"))
                     .SetName("Infer parameter var type. Case 2.");
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferParameterVar_2_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferParameterVar_2_1"))
+                    .SetName("Infer parameter var type. Case 2.1.");
                 yield return new TestCaseData("BeforeAssignStatementToVar_inferParameterVar_3", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterAssignStatementToVar_inferParameterVar_3"))
                     .SetName("Infer parameter var type. Case 3.");
@@ -792,6 +809,9 @@ namespace HaXeContext.Generators
                 yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_9", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_9"))
                     .SetName("Infer var type. Case 9.");
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_9_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_9_1"))
+                    .SetName("Infer var type. Case 9.1.");
                 yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_10", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_10"))
                     .SetName("Infer var type. Case 10.");
@@ -839,6 +859,60 @@ namespace HaXeContext.Generators
                 yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2385_3", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2385_3"))
                     .SetName("Infer var type. Issue 2385. Case 3.");
+            }
+        }
+
+        static IEnumerable<TestCaseData> AssignStatementToVarInferVarIssue2444TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2444_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2444_1"))
+                    .SetName("Infer var type. Issue 2444. Case 1.");
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2444_2", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2444_2"))
+                    .SetName("Infer var type. Issue 2444. Case 2.");
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2444_3", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2444_3"))
+                    .SetName("Infer var type. Issue 2444. Case 3.");
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2444_4", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2444_4"))
+                    .SetName("Infer var type. Issue 2444. Case 4.");
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2444_5", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2444_5"))
+                    .SetName("Infer var type. Issue 2444. Case 5.");
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2444_6", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2444_6"))
+                    .SetName("Infer var type. Issue 2444. Case 6.");
+            }
+        }
+
+        static IEnumerable<TestCaseData> AssignStatementToVarInferVarIssue2447TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2447_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2447_1"))
+                    .SetName("Infer var type. Issue 2447. Case 1.");
+            }
+        }
+
+        static IEnumerable<TestCaseData> AssignStatementToVarInferVarIssue2450TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2450_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2450_1"))
+                    .SetName("Infer var type. Issue 2450. Case 1.");
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2450_2", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2450_2"))
+                    .SetName("Infer var type. Issue 2450. Case 2.");
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2450_3", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2450_3"))
+                    .SetName("Infer var type. Issue 2450. Case 3.");
+                yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2450_4", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2450_4"))
+                    .SetName("Infer var type. Issue 2450. Case 4.");
             }
         }
 
@@ -1267,6 +1341,9 @@ namespace HaXeContext.Generators
             TestCaseSource(nameof(AssignStatementToVarInferParameterVarIssue2371TestCases)),
             TestCaseSource(nameof(AssignStatementToVarInferVarTestCases)),
             TestCaseSource(nameof(AssignStatementToVarInferVarIssue2385TestCases)),
+            TestCaseSource(nameof(AssignStatementToVarInferVarIssue2444TestCases)),
+            TestCaseSource(nameof(AssignStatementToVarInferVarIssue2447TestCases)),
+            TestCaseSource(nameof(AssignStatementToVarInferVarIssue2450TestCases)),
             TestCaseSource(nameof(AssignStatementToVarTestCases)),
             TestCaseSource(nameof(AddToInterfaceTestCases)),
             TestCaseSource(nameof(AddToInterfaceIssue1733TestCases)),
@@ -1300,14 +1377,14 @@ namespace HaXeContext.Generators
                 if (job != (GeneratorJobType) (-1))
                 {
                     Assert.IsNotEmpty(options);
-                    var item = options.Find(it => it is ASCompletion.Completion.GeneratorItem && ((ASCompletion.Completion.GeneratorItem) it).Job == job);
+                    var item = options.Find(it => it is ASCompletion.Completion.GeneratorItem generatorItem && generatorItem.Job == job);
                     Assert.IsNotNull(item);
                     var value = item.Value;
                 }
                 return sci.Text;
             }
             if (job == (GeneratorJobType) (-1)) Assert.IsEmpty(options);
-            if (options.Count > 0) Assert.IsFalse(options.Any(it => it is ASCompletion.Completion.GeneratorItem && ((ASCompletion.Completion.GeneratorItem) it).Job == job));
+            if (options.Count > 0) Assert.IsFalse(options.Any(it => it is ASCompletion.Completion.GeneratorItem item && item.Job == job));
             return null;
         }
 

@@ -2921,11 +2921,7 @@ namespace ASCompletion.Completion
                     if (features.hasInference)
                     {
                         var member = result.Member;
-                        if (member != null && member.Flags.HasFlag(FlagType.Variable) && member.Type == null)
-                        {
-                            context.CodeComplete.InferVariableType(local, member);
-                            if (string.IsNullOrEmpty(member.Type)) member.Type = context.ResolveType(features.dynamicKey, null).Name;
-                        }
+                        if (member != null && member.Type == null) context.CodeComplete.InferVariableType(local, member);
                     }
                     return result;
                 }
@@ -3064,6 +3060,7 @@ namespace ASCompletion.Completion
 
         protected virtual void InferVariableType(ScintillaControl sci, string declarationLine, int rvalueStart, ASExpr local, MemberModel var)
         {
+            if (!var.Flags.HasFlag(FlagType.Variable) && !var.Flags.HasFlag(FlagType.ParameterVar)) return;
             var p = declarationLine.IndexOf(';');
             var text = declarationLine.TrimEnd();
             if (p < 0) p = text.Length;
@@ -3071,7 +3068,8 @@ namespace ASCompletion.Completion
             // resolve expression
             var expr = GetExpression(sci, sci.PositionFromLine(var.LineFrom) + p, true);
             if (string.IsNullOrEmpty(expr.Value)) return;
-            var result = EvalExpression(expr.Value, expr, ASContext.Context.CurrentModel, ASContext.Context.CurrentClass, true, false);
+            var ctx = ASContext.Context;
+            var result = EvalExpression(expr.Value, expr, ctx.CurrentModel, ctx.CurrentClass, true, false);
             if (result.IsNull()) return;
             if (result.Type != null && !result.Type.IsVoid())
             {
@@ -3081,6 +3079,7 @@ namespace ASCompletion.Completion
             else if (result.Member != null)
             {
                 var.Type = result.Member.Type;
+                if (string.IsNullOrEmpty(var.Type)) var.Type = ctx.ResolveType(ctx.Features.objectKey, null).Name;
                 var.Flags |= FlagType.Inferred;
             }
         }
@@ -3395,43 +3394,47 @@ namespace ASCompletion.Completion
             expression.Position = position;
             expression.Separator = " ";
 
-            // file's member declared at this position
-            expression.ContextMember = context.CurrentMember;
             int minPos = 0;
-            if (expression.ContextMember != null)
+            // file's member declared at this position
+            if (context.CurrentMember is MemberModel currentMember
+                && position >= sci.PositionFromLine(currentMember.LineFrom)
+                && position <= sci.LineEndPosition(currentMember.LineTo))
             {
-                minPos = sci.PositionFromLine(expression.ContextMember.LineFrom);
-                StringBuilder sbBody = new StringBuilder();
-                for (int i = expression.ContextMember.LineFrom; i <= expression.ContextMember.LineTo; i++)
+                expression.ContextMember = currentMember;
+                minPos = sci.PositionFromLine(currentMember.LineFrom);
+                var sbBody = new StringBuilder();
+                for (int i = currentMember.LineFrom; i <= currentMember.LineTo; i++)
                     sbBody.Append(sci.GetLine(i));
                 var body = sbBody.ToString();
-
                 var hasBody = FlagType.Function | FlagType.Constructor;
                 if (!haXe) hasBody |= FlagType.Getter | FlagType.Setter;
-
-                if ((expression.ContextMember.Flags & hasBody) > 0)
+                if ((currentMember.Flags & hasBody) > 0)
                 {
-                    expression.ContextFunction = expression.ContextMember;
-                    expression.FunctionOffset = expression.ContextMember.LineFrom;
-
-                    Match mStart = Regex.Match(body, "(\\)|[a-z0-9*.,-<>])\\s*{", RegexOptions.IgnoreCase);
-                    if (mStart.Success)
+                    expression.ContextFunction = currentMember;
+                    expression.FunctionOffset = currentMember.LineFrom;
+                    var m = Regex.Match(body, "(\\)|[a-z0-9*.,-<>])\\s*{", RegexOptions.IgnoreCase);
+                    if (m.Success)
                     {
                         // cleanup function body & offset
-                        int pos = mStart.Index + mStart.Length - 1;
-                        expression.BeforeBody = (position < sci.PositionFromLine(expression.ContextMember.LineFrom) + pos);
+                        int pos = m.Index + m.Length - 1;
+                        expression.BeforeBody = (position < sci.PositionFromLine(currentMember.LineFrom) + pos);
                         string pre = body.Substring(0, pos);
                         for (int i = 0; i < pre.Length - 1; i++)
-                            if (pre[i] == '\r') { expression.FunctionOffset++; if (pre[i + 1] == '\n') i++; }
+                            if (pre[i] == '\r')
+                            {
+                                expression.FunctionOffset++;
+                                if (pre[i + 1] == '\n') i++;
+                            }
                             else if (pre[i] == '\n') expression.FunctionOffset++;
+
                         body = body.Substring(pos);
                     }
                     expression.FunctionBody = body;
                 }
                 else
                 {
-                    int eqPos = body.IndexOf('=');
-                    expression.BeforeBody = (eqPos < 0 || position < sci.PositionFromLine(expression.ContextMember.LineFrom) + eqPos);
+                    var eqPos = body.IndexOf('=');
+                    expression.BeforeBody = (eqPos < 0 || position < sci.PositionFromLine(currentMember.LineFrom) +eqPos);
                 }
             }
 
@@ -3442,22 +3445,22 @@ namespace ASCompletion.Completion
             var features = context.Features;
             var sb = new StringBuilder();
             var sbSub = new StringBuilder();
-            int subCount = 0;
-            char c = ' ';
+            var subCount = 0;
+            var c = ' ';
             var startPosition = position;
-            int positionExpression = position;
-            int arrCount = 0;
-            int parCount = 0;
-            int genCount = 0;
+            var positionExpression = position;
+            var arrCount = 0;
+            var parCount = 0;
+            var genCount = 0;
             var braCount = 0;
             var dQuotes = 0;
             var sQuotes = 0;
-            bool hasGenerics = features.hasGenerics;
-            bool hadWS = false;
-            bool hadDot = ignoreWhiteSpace;
-            int dotCount = 0;
-            bool inRegex = false;
-            char dot = features.dot[features.dot.Length - 1];
+            var hasGenerics = features.hasGenerics;
+            var hadWS = false;
+            var hadDot = ignoreWhiteSpace;
+            var dotCount = 0;
+            var inRegex = false;
+            var dot = features.dot[features.dot.Length - 1];
             while (position > minPos)
             {
                 position--;
@@ -3840,8 +3843,14 @@ namespace ASCompletion.Completion
                     }
                     else if (features.ArithmeticOperators.Contains(c))
                     {
-                        expression.SeparatorPosition = position;
                         var p = position - 1;
+                        // for example: 5e-324, 1.79e+308
+                        if ((c == '-' || c == '+') && p > minPos && sci.CharAt(p) == 'e')
+                        {
+                            sb.Insert(0, c);
+                            continue;
+                        }
+                        expression.SeparatorPosition = position;
                         var curOp = c.ToString();
                         foreach (var op in features.IncrementDecrementOperators)
                         {
@@ -4569,6 +4578,7 @@ namespace ASCompletion.Completion
             var arrCount = 0;
             var hadWS = false;
             var stop = false;
+            var exprStarted = false;
             sci.Colourise(0, -1);
             while (statementEnd < endPos)
             {
@@ -4584,7 +4594,11 @@ namespace ASCompletion.Completion
                     continue;
                 }
                 var c = (char) sci.CharAt(statementEnd++);
-                if (c == '(' && arrCount == 0) parCount++;
+                if (c == '(' && arrCount == 0)
+                {
+                    parCount++;
+                    exprStarted = true;
+                }
                 else if (c == ')' && arrCount == 0)
                 {
                     parCount--;
@@ -4595,6 +4609,7 @@ namespace ASCompletion.Completion
                 {
                     if (stop) break;
                     brCount++;
+                    exprStarted = true;
                 }
                 else if (c == '}' && parCount == 0 && arrCount == 0)
                 {
@@ -4602,7 +4617,11 @@ namespace ASCompletion.Completion
                     if (brCount == 0) result = statementEnd;
                     if (brCount < 0) break;
                 }
-                else if (c == '[' && parCount == 0) arrCount++;
+                else if (c == '[' && parCount == 0)
+                {
+                    arrCount++;
+                    exprStarted = true;
+                }
                 else if (c == ']' && parCount == 0)
                 {
                     arrCount--;
@@ -4621,8 +4640,24 @@ namespace ASCompletion.Completion
                         else if (hadWS) break;
                         stop = true;
                         result = statementEnd;
+                        exprStarted = true;
                     }
                     else if (c <= ' ') hadWS = true;
+                    else if (c == '.')
+                    {
+                        // for example: 0.0
+                        if (!exprStarted) break;
+                        if (statementEnd >= endPos || !char.IsDigit((char) sci.CharAt(statementEnd))) break;
+                        var p = statementEnd - 2;
+                        if (p < 0 || !char.IsDigit((char) sci.CharAt(p))) break;
+                    }
+                    else if ((c == '-' || c == '+'))
+                    {
+                        if (!exprStarted) continue;
+                        var p = statementEnd - 2;
+                        // for example: 5e-324
+                        if (p < 1 || (sci.CharAt(p) != 'e' && !char.IsDigit((char) sci.CharAt(p - 1)))) break;
+                    }
                     else break;
                 }
             }
@@ -4706,7 +4741,11 @@ namespace ASCompletion.Completion
             {
                 return ClassModel.ClassDeclaration(result.InClass) + GetToolTipDoc(result.InClass);
             }
-            if (result.Type != null && result.Context.WordBefore == "new") return ASContext.Context.CodeComplete.GetConstructorTooltipText(result.Type);
+            if (result.Type != null)
+            {
+                if (result.Context.WordBefore == "new") return ASContext.Context.CodeComplete.GetConstructorTooltipText(result.Type);
+                return ClassModel.ClassDeclaration(result.Type) + GetToolTipDoc(result.Type);
+            }
             return null;
         }
 
