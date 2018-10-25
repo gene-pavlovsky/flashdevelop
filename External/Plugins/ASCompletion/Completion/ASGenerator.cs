@@ -290,15 +290,16 @@ namespace ASCompletion.Completion
                 }
 
                 // "assign var to statement" suggestion
-                var curLine = sci.CurrentLine;
-                var ln = sci.GetLine(curLine).TrimEnd();
+                var curLine = sci.GetLine(sci.CurrentLine);
+                var ln = curLine.TrimEnd();
                 if (ln.Length > 0
-                    && ln.Length <= sci.CurrentPos - sci.PositionFromLine(curLine)) // cursor at end of line
+                    && sci.PositionFromLine(sci.CurrentLine) is var positionFromLine
+                    && ln.Length <= sci.CurrentPos - positionFromLine) // cursor at end of line
                 {
-                    var returnType = GetStatementReturnType(sci, found.InClass, sci.GetLine(curLine), sci.PositionFromLine(curLine));
-                    if (returnType.resolve.Member?.Type == ASContext.Context.Features.voidKey) return;
-                    if (returnType.resolve.Type == null && returnType.resolve.Context?.WordBefore == "new") ShowNewClassList(found, returnType.resolve.Context, options);
-                    else if (returnType.resolve.Type == null && returnType.resolve.Member == null) return;
+                    var returnType = GetStatementReturnType(sci, found.InClass, curLine, positionFromLine);
+                    if (!CanShowAssignStatementToVariable(sci, returnType.Resolve)) return;
+                    if (returnType.Resolve.Type == null && returnType.Resolve.Context?.WordBefore == "new") ShowNewClassList(found, returnType.Resolve.Context, options);
+                    else if (returnType.Resolve.Type == null && returnType.Resolve.Member == null) return;
                     else ShowAssignStatementToVarList(found, returnType, options);
                     return;
                 }
@@ -444,6 +445,19 @@ namespace ASCompletion.Completion
         }
 
         /// <summary>
+        /// Check if "Assign statement to variable" are available at the current cursor position.
+        /// </summary>
+        /// <param name="sci">The Scintilla control containing the document</param>
+        /// <param name="expr">Expression at cursor position</param>
+        /// <returns>true, if can show "Assign statement to variable" list</returns>
+        protected virtual bool CanShowAssignStatementToVariable(ScintillaControl sci, ASResult expr)
+        {
+            // for example: return expr<generator>
+            if (expr.Context.WordBefore == "return") return false;
+            return (expr.Member?.Type is string t && t != ASContext.Context.Features.voidKey) || expr.Type != ClassModel.VoidClass;
+        }
+
+        /// <summary>
         /// Check if "Convert to constant" are available at the current cursor position.
         /// </summary>
         /// <param name="sci">The Scintilla control containing the document</param>
@@ -465,7 +479,7 @@ namespace ASCompletion.Completion
         /// <param name="expr">Expression at cursor position</param>
         /// <param name="found">The declaration target at current line(can not be null)</param>
         /// <returns>true, if can show "Getter and Setter" list</returns>
-        protected virtual bool CanShowGetSetList(ScintillaControl sci, int position, ASResult resolve, FoundDeclaration found) => true;
+        protected virtual bool CanShowGetSetList(ScintillaControl sci, int position, ASResult expr, FoundDeclaration found) => true;
 
         /// <summary>
         /// Check if "Getter" are available at the current cursor position.
@@ -679,42 +693,26 @@ namespace ASCompletion.Completion
             position = sci.WordEndPosition(position + 1, true);
             sci.SetSel(position, position);
             c = (char)sci.CharAt(position);
-            if (c <= 32) if (closeBrace) sci.ReplaceSel(");"); else sci.ReplaceSel(";");
+            if (c <= 32) sci.ReplaceSel(closeBrace ? ");" : ";");
 
             sci.SetSel(position, position);
         }
 
-        protected static FoundDeclaration GetDeclarationAtLine(int line)
+        protected virtual FoundDeclaration GetDeclarationAtLine(int line)
         {
-            FoundDeclaration result = new FoundDeclaration();
-            FileModel model = ASContext.Context.CurrentModel;
-
-            foreach (MemberModel member in model.Members)
+            var result = new FoundDeclaration();
+            var model = ASContext.Context.CurrentModel;
+            result.Member = GetMemberAtLine(model.Members.Items);
+            if (result.Member == null)
             {
-                if (member.LineFrom <= line && member.LineTo >= line)
-                {
-                    result.Member = member;
-                    return result;
-                }
-            }
-
-            foreach (ClassModel aClass in model.Classes)
-            {
-                if (aClass.LineFrom <= line && aClass.LineTo >= line)
-                {
-                    result.InClass = aClass;
-                    foreach (MemberModel member in aClass.Members)
-                    {
-                        if (member.LineFrom <= line && member.LineTo >= line)
-                        {
-                            result.Member = member;
-                            return result;
-                        }
-                    }
-                    return result;
-                }
+                result.InClass = (ClassModel) GetMemberAtLine(model.Classes);
+                if (result.InClass != null) result.Member = GetMemberAtLine(result.InClass.Members.Items);
             }
             return result;
+
+            // Utils
+            MemberModel GetMemberAtLine(IEnumerable<MemberModel> list) =>
+                list.FirstOrDefault(it => it.LineFrom <= line && it.LineTo >= line);
         }
 
         protected bool CheckAutoImport(ASResult expr, List<ICompletionListItem> options)
@@ -1369,7 +1367,7 @@ namespace ASCompletion.Completion
                     sci.BeginUndoAction();
                     try
                     {
-                        if (data is StatementReturnType) AssignStatementToVar(sci, inClass, (StatementReturnType)data);
+                        if (data is StatementReturnType returnType) AssignStatementToVar(sci, inClass, returnType);
                         else AssignStatementToVar(sci, inClass);
                     }
                     finally
@@ -1447,7 +1445,7 @@ namespace ASCompletion.Completion
         static void AssignStatementToVar(ScintillaControl sci, ClassModel inClass, StatementReturnType returnType)
         {
             var ctx = inClass.InFile.Context;
-            var resolve = returnType.resolve;
+            var resolve = returnType.Resolve;
             string type = null;
             List<ASResult> expressions = null;
             var context = resolve.Context;
@@ -1499,7 +1497,7 @@ namespace ASCompletion.Completion
                 && resolve.Type.Name != "Function"
                 && !string.IsNullOrEmpty(resolve.Path) && !char.IsDigit(resolve.Path[0]))
             {
-                var expr = ASComplete.GetExpression(sci, returnType.position);
+                var expr = ASComplete.GetExpression(sci, returnType.Position);
                 if (string.IsNullOrEmpty(expr.WordBefore))
                 {
                     var characters = ScintillaControl.Configuration.GetLanguage(ctx.Settings.LanguageId.ToLower()).characterclass.Characters;
@@ -1511,7 +1509,7 @@ namespace ASCompletion.Completion
                 }
             }
 
-            var word = returnType.word;
+            var word = returnType.Word;
             if (!string.IsNullOrEmpty(word) && char.IsDigit(word[0])) word = null;
             string varname = null;
             if (string.IsNullOrEmpty(type) && !resolve.IsNull())
@@ -1707,7 +1705,7 @@ namespace ASCompletion.Completion
             var parameters = ParseFunctionParameters(sci, wordPos);
 
             ASResult funcResult = ASComplete.GetExpressionType(sci, sci.WordEndPosition(sci.CurrentPos, true));
-            if (funcResult == null || funcResult.Member == null) return;
+            if (funcResult?.Member == null) return;
             if (funcResult.InClass != null && !funcResult.InClass.Equals(inClass))
             {
                 AddLookupPosition();
@@ -1752,7 +1750,7 @@ namespace ASCompletion.Completion
         private static void ChangeConstructorDecl(ScintillaControl sci, ClassModel inClass, IList<FunctionParameter> parameters)
         {
             var funcResult = ASComplete.GetExpressionType(sci, sci.WordEndPosition(sci.CurrentPos, true));
-            if (funcResult == null || funcResult.Type == null) return;
+            if (funcResult?.Type == null) return;
             if (!funcResult.Type.Equals(inClass))
             {
                 AddLookupPosition();
@@ -3080,8 +3078,9 @@ namespace ASCompletion.Completion
             }
             InsertCode(sci.CurrentPos, template, sci);
 
-            ASContext.Context.GetCodeModel(ASContext.Context.CurrentModel, sci.Text);
-            FoundDeclaration found = GetDeclarationAtLine(lineStart);
+            var ctx = ASContext.Context;
+            ctx.GetCodeModel(ctx.CurrentModel, sci.Text);
+            var found = ((ASGenerator) ctx.CodeGenerator).GetDeclarationAtLine(lineStart);
             if (found.Member == null) return;
 
             lookupPosition = sci.CurrentPos;
@@ -3104,7 +3103,7 @@ namespace ASCompletion.Completion
                 flags |= FlagType.Static;
             }
 
-            MemberModel m = new MemberModel(newName, ASContext.Context.Features.voidKey, flags, GetDefaultVisibility(found.InClass));
+            MemberModel m = new MemberModel(newName, ctx.Features.voidKey, flags, GetDefaultVisibility(found.InClass));
 
             template = NewLine + TemplateUtils.GetTemplate("Function");
             template = TemplateUtils.ToDeclarationWithModifiersString(m, template);
@@ -4625,15 +4624,15 @@ namespace ASCompletion.Completion
 
     class StatementReturnType
     {
-        public ASResult resolve;
-        public Int32 position;
-        public String word;
+        public ASResult Resolve;
+        public int Position;
+        public string Word;
 
-        public StatementReturnType(ASResult resolve, Int32 position, String word)
+        public StatementReturnType(ASResult resolve, int position, string word)
         {
-            this.resolve = resolve;
-            this.position = position;
-            this.word = word;
+            Resolve = resolve;
+            Position = position;
+            Word = word;
         }
     }
     #endregion

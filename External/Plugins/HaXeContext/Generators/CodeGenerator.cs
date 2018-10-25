@@ -7,6 +7,7 @@ using ASCompletion.Completion;
 using ASCompletion.Context;
 using ASCompletion.Model;
 using ASCompletion.Settings;
+using HaXeContext.Completion;
 using HaXeContext.Model;
 using PluginCore;
 using PluginCore.Controls;
@@ -42,6 +43,14 @@ namespace HaXeContext.Generators
                 options.Add(new GeneratorItem(label, GeneratorJob.Switch, () => Generate(GeneratorJob.Switch, sci, expr)));
             }
             base.ContextualGenerator(sci, position, expr, options);
+        }
+
+        protected override bool CanShowAssignStatementToVariable(ScintillaControl sci, ASResult expr)
+        {
+            if (!base.CanShowAssignStatementToVariable(sci, expr)) return false;
+            // for example: return cast expr<generator>, return untyped expr<generator>
+            return ((expr.Context.WordBefore != "cast" || expr.Context.WordBefore != "untyped")
+                    && sci.GetWordLeft(expr.Context.WordBeforePosition - 1, true) != "return");
         }
 
         /// <inheritdoc />
@@ -268,6 +277,20 @@ namespace HaXeContext.Generators
             }
         }
 
+        protected override FoundDeclaration GetDeclarationAtLine(int line)
+        {
+            var result = base.GetDeclarationAtLine(line);
+            if (result.Member is MemberModel member
+                && string.IsNullOrEmpty(member.Type)
+                && (member.Flags.HasFlag(FlagType.Variable)
+                    || member.Flags.HasFlag(FlagType.Getter)
+                    || member.Flags.HasFlag(FlagType.Setter)))
+            {
+                ((CodeComplete)ASContext.Context.CodeComplete).InferVariableType(ASContext.CurSciControl, member);
+            }
+            return result;
+        }
+
         static void MakeProperty(ScintillaControl sci, MemberModel member, string args)
         {
             var features = ASContext.Context.Features;
@@ -488,7 +511,7 @@ namespace HaXeContext.Generators
                 var c = (char) sci.CharAt(i);
                 if (c <= ' ') continue;
                 if (c == '.') return false;
-                if (c > ' ') break;
+                break;
             }
             var type = ctx.ResolveType(member.Type, expr.InFile);
             return (type.Flags.HasFlag(FlagType.Enum) && type.Members.Count > 0)

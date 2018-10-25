@@ -1074,6 +1074,40 @@ namespace HaXeContext.Generators
             }
         }
 
+        static IEnumerable<TestCaseData> AssignStatementToVarIssue2455TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2455_1", GeneratorJobType.AssignStatementToVar, false)
+                    .Returns(null)
+                    .SetName("return 10;|. Assign statement to var. Issue 2455. Case 1.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2455");
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2455_2", GeneratorJobType.AssignStatementToVar, false)
+                    .Returns(null)
+                    .SetName("return cast 10;|. Assign statement to var. Issue 2455. Case 2.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2455");
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2455_3", GeneratorJobType.AssignStatementToVar, false)
+                    .Returns(null)
+                    .SetName("return untyped 10;|. Assign statement to var. Issue 2455. Case 3.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2455");
+            }
+        }
+
+        static IEnumerable<TestCaseData> AssignStatementToVarIssue2457TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2457_1", GeneratorJobType.AssignStatementToVar, false)
+                    .Returns(null)
+                    .SetName("Assign statement to var. Issue 2457. Case 1.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2457");
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2457_2", GeneratorJobType.AssignStatementToVar, false)
+                    .Returns(null)
+                    .SetName("Assign statement to var. Issue 2457. Case 2.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2457");
+            }
+        }
+
         static IEnumerable<TestCaseData> AssignStatementToVarTestCases
         {
             get
@@ -1309,6 +1343,21 @@ namespace HaXeContext.Generators
             }
         }
 
+        static IEnumerable<TestCaseData> GenerateGetterSetterInferVar2456TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2456_1", GeneratorJobType.GetterSetter, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2456_1"))
+                    .SetName("Generate getter and setter. Issue 2456. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2456");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2456_2", GeneratorJobType.GetterSetter, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2456_1"))
+                    .SetName("Generate getter and setter. Issue 2456. Case 2")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2456");
+            }
+        }
+
         [
             Test,
             TestCaseSource(nameof(ContextualGeneratorTestCases)),
@@ -1336,6 +1385,8 @@ namespace HaXeContext.Generators
             TestCaseSource(nameof(AssignStatementToVarIssue2161TestCases)),
             TestCaseSource(nameof(AssignStatementToVarIssue2198TestCases)),
             TestCaseSource(nameof(AssignStatementToVarIssue2306TestCases)),
+            TestCaseSource(nameof(AssignStatementToVarIssue2455TestCases)),
+            TestCaseSource(nameof(AssignStatementToVarIssue2457TestCases)),
             TestCaseSource(nameof(AssignStatementToVarInferParameterVarTestCases)),
             TestCaseSource(nameof(AssignStatementToVarInferParameterVarIssue2350TestCases)),
             TestCaseSource(nameof(AssignStatementToVarInferParameterVarIssue2371TestCases)),
@@ -1357,6 +1408,7 @@ namespace HaXeContext.Generators
             TestCaseSource(nameof(GenerateEventHandlerIssue751TestCases)),
             TestCaseSource(nameof(CreateNewClassIssue2393TestCases)),
             TestCaseSource(nameof(GenerateGetterSetterInAbstractIssue2403TestCases)),
+            TestCaseSource(nameof(GenerateGetterSetterInferVar2456TestCases)),
         ]
         public string ContextualGenerator(string fileName, GeneratorJobType job, bool hasGenerator) => ContextualGenerator(sci, fileName, job, hasGenerator);
 
