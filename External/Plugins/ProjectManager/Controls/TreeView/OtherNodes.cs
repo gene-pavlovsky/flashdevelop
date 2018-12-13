@@ -1,8 +1,8 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using PluginCore;
 using ProjectManager.Projects;
@@ -124,7 +124,7 @@ namespace ProjectManager.Controls.TreeView
                 for (int i = parts.Length - 1; i > 0; --i)
                 {
                     String part = parts[i];
-                    if (part != "" && part != "." && part != ".." && Array.IndexOf(excludes, part.ToLower()) == -1)
+                    if (part != "" && part != "." && part != ".." && !excludes.Contains(part.ToLower()))
                     {
                         if (Char.IsDigit(part[0]) && reVersion.IsMatch(part)) label.Add(part);
                         else if (part.Length == 40 && reSHAHash.IsMatch(part)) label.Add(part);
@@ -217,70 +217,65 @@ namespace ProjectManager.Controls.TreeView
             {
                 foreach (var it in project.ExternalLibraries)
                 {
-                    var node = ReuseNode(it, nodesToDie) as ProjectClasspathNode ?? new ProjectClasspathNode(project,it,it);
+                    var node = ReuseNode(it, nodesToDie) as ProjectClasspathNode ?? new ProjectClasspathNode(project, it, it);
                     Nodes.Add(node);
                     node.Refresh(recursive);
                 }
             }
 
             // explore classpaths
-            var projectClasspaths = new ArrayList();
             if (PluginMain.Settings.ShowProjectClasspaths)
             {
-                projectClasspaths.AddRange(project.Classpaths);
+                var projectClasspaths = new List<string>(project.Classpaths);
                 if (project.AdditionalPaths != null) projectClasspaths.AddRange(project.AdditionalPaths);
                 projectClasspaths.Sort();
+                // create references nodes
+                foreach (string projectClasspath in projectClasspaths)
+                {
+                    string absolute = projectClasspath;
+                    if (!Path.IsPathRooted(absolute))
+                        absolute = project.GetAbsolutePath(projectClasspath);
+                    if ((absolute + "\\").StartsWithOrdinal(project.Directory + "\\"))
+                        continue;
+                    if (!project.ShowHiddenPaths && project.IsPathHidden(absolute))
+                        continue;
+
+                    var cpNode = ReuseNode(absolute, nodesToDie) as ProjectClasspathNode ?? new ProjectClasspathNode(project, absolute, projectClasspath);
+                    Nodes.Add(cpNode);
+                    cpNode.Refresh(recursive);
+                }
             }
 
-            var globalClasspaths = new ArrayList();
             if (PluginMain.Settings.ShowGlobalClasspaths)
             {
-                globalClasspaths.AddRange(PluginMain.Settings.GlobalClasspaths);
+                var globalClasspaths = new List<string>(PluginMain.Settings.GlobalClasspaths);
                 globalClasspaths.Sort();
-            }
+                foreach (string globalClasspath in globalClasspaths)
+                {
+                    string absolute = globalClasspath;
+                    if (!Path.IsPathRooted(absolute))
+                        absolute = project.GetAbsolutePath(globalClasspath);
+                    if (absolute.StartsWithOrdinal(project.Directory + Path.DirectorySeparatorChar))
+                        continue;
 
-            // create references nodes
-            ClasspathNode cpNode;
-            foreach (string projectClasspath in projectClasspaths)
-            {
-                string absolute = projectClasspath;
-                if (!Path.IsPathRooted(absolute))
-                    absolute = project.GetAbsolutePath(projectClasspath);
-                if ((absolute + "\\").StartsWithOrdinal(project.Directory + "\\"))
-                    continue;
-                if (!project.ShowHiddenPaths && project.IsPathHidden(absolute))
-                    continue;
-
-                cpNode = ReuseNode(absolute, nodesToDie) as ProjectClasspathNode ?? new ProjectClasspathNode(project, absolute, projectClasspath);
-                Nodes.Add(cpNode);
-                cpNode.Refresh(recursive);
-            }
-
-            foreach (string globalClasspath in globalClasspaths)
-            {
-                string absolute = globalClasspath;
-                if (!Path.IsPathRooted(absolute))
-                    absolute = project.GetAbsolutePath(globalClasspath);
-                if (absolute.StartsWithOrdinal(project.Directory + Path.DirectorySeparatorChar))
-                    continue;
-
-                cpNode = ReuseNode(absolute, nodesToDie) as ProjectClasspathNode ?? new ClasspathNode(project, absolute, globalClasspath);
-                Nodes.Add(cpNode);
-                cpNode.Refresh(recursive);
+                    var cpNode = ReuseNode(absolute, nodesToDie) as ProjectClasspathNode ?? new ClasspathNode(project, absolute, globalClasspath);
+                    Nodes.Add(cpNode);
+                    cpNode.Refresh(recursive);
+                }
             }
 
             // add external libraries at the top level also
-            if (project is AS3Project)
-                foreach (LibraryAsset asset in (project as AS3Project).SwcLibraries)
+            if (project is AS3Project as3Project)
+                foreach (LibraryAsset asset in as3Project.SwcLibraries)
                 {
                     if (!asset.IsSwc) continue;
                     // check if SWC is inside the project or inside a classpath
                     string absolute = asset.Path;
                     if (!Path.IsPathRooted(absolute))
-                        absolute = project.GetAbsolutePath(asset.Path);
+                        absolute = as3Project.GetAbsolutePath(asset.Path);
 
-                    var showNode = !absolute.StartsWithOrdinal(project.Directory);
-                    foreach (string path in project.AbsoluteClasspaths)
+                    var showNode = !absolute.StartsWithOrdinal(as3Project.Directory);
+                    foreach (string path in as3Project.AbsoluteClasspaths)
                         if (absolute.StartsWithOrdinal(path))
                         {
                             showNode = false;
@@ -293,7 +288,7 @@ namespace ProjectManager.Controls.TreeView
                             break;
                         }
 
-                    if (showNode && !project.ShowHiddenPaths && project.IsPathHidden(absolute))
+                    if (showNode && !as3Project.ShowHiddenPaths && as3Project.IsPathHidden(absolute))
                         continue;
 
                     if (showNode && File.Exists(absolute))

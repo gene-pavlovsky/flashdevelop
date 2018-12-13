@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using ASCompletion.Completion;
 using ASCompletion.Context;
+using ASCompletion.Generators;
 using ASCompletion.Model;
 using ASCompletion.Settings;
 using HaXeContext.Completion;
@@ -21,10 +23,20 @@ namespace HaXeContext.Generators
     {
         EnumConstructor,
         Switch,
+        IVariable,
     }
 
     internal class CodeGenerator : ASGenerator
     {
+        readonly CodeGeneratorInterfaceBehavior codeGeneratorInterfaceBehavior = new CodeGeneratorInterfaceBehavior();
+
+        protected override ICodeGeneratorBehavior GetCodeGeneratorBehavior()
+        {
+            if ((ASContext.Context.CurrentClass.Flags & FlagType.Interface) != 0)
+                return codeGeneratorInterfaceBehavior;
+            return base.GetCodeGeneratorBehavior();
+        }
+
         /// <inheritdoc />
         protected override void ContextualGenerator(ScintillaControl sci, int position, ASResult expr, List<ICompletionListItem> options)
         {
@@ -32,7 +44,7 @@ namespace HaXeContext.Generators
             if (expr.Context.Separator == ":" && expr.Context.SeparatorPosition > 0 && sci.CharAt(expr.Context.SeparatorPosition - 1) == '@') return;
             var ctx = ASContext.Context;
             var currentClass = ctx.CurrentClass;
-            if (currentClass.Flags.HasFlag(FlagType.Enum | FlagType.TypeDef) || currentClass.Flags.HasFlag(FlagType.Interface))
+            if (currentClass.Flags.HasFlag(FlagType.Enum | FlagType.TypeDef))
             {
                 if (contextToken != null && expr.Member == null && !ctx.IsImported(expr.Type ?? ClassModel.VoidClass, sci.CurrentLine)) CheckAutoImport(expr, options);
                 return;
@@ -45,6 +57,7 @@ namespace HaXeContext.Generators
             base.ContextualGenerator(sci, position, expr, options);
         }
 
+        /// <inheritdoc />
         protected override bool CanShowAssignStatementToVariable(ScintillaControl sci, ASResult expr)
         {
             if (!base.CanShowAssignStatementToVariable(sci, expr)) return false;
@@ -277,7 +290,7 @@ namespace HaXeContext.Generators
             }
         }
 
-        protected override FoundDeclaration GetDeclarationAtLine(int line)
+        public override FoundDeclaration GetDeclarationAtLine(int line)
         {
             var result = base.GetDeclarationAtLine(line);
             if (result.Member is MemberModel member
@@ -328,7 +341,7 @@ namespace HaXeContext.Generators
             if (handler?.Parameters is List<MemberModel> parameters && parameters.Count > 1 && parameters[1]?.Type is string type)
             {
                 if (type == "haxe.Constraints.Function") return string.Empty;
-                if (type.Contains("->"))
+                if (FileParser.IsFunctionType(type))
                 {
                     var member = FileParser.FunctionTypeToMemberModel(type, ASContext.Context.Features);
                     if (member.Parameters.Count > 0 && member.Parameters[0].Type is string result)
@@ -349,8 +362,8 @@ namespace HaXeContext.Generators
                 var parameters = member.Parameters;
                 if (parameters != null)
                 {
-                    if (parameters.Count > 0) template = template.Replace("get_$(Name)", parameters[0].Name);
-                    if (parameters.Count > 1) template = template.Replace("set_$(Name)", parameters[1].Name);
+                    if (parameters.Count > 0) template = template.Replace("get", parameters[0].Name);
+                    if (parameters.Count > 1) template = template.Replace("set", parameters[1].Name);
                 }
                 return template;
             }
@@ -363,25 +376,25 @@ namespace HaXeContext.Generators
             {
                 paramName = paramName.Remove(0, 1);
                 if (string.IsNullOrEmpty(paramType)) return "Null<Dynamic>";
-                if (!paramType.StartsWith("Null<")) return $"Null<{paramType}>";
+                if (!paramType.StartsWithOrdinal("Null<")) return $"Null<{paramType}>";
             }
             return paramType;
         }
 
-        protected override string GetFunctionType(MemberModel member)
+        protected override string GetFunctionBody(MemberModel member, ClassModel inClass)
         {
-            var voidKey = ASContext.Context.Features.voidKey;
-            var parameters = member.Parameters?.Select(it => it.Type).ToList() ?? new List<string> {voidKey};
-            parameters.Add(member.Type ?? voidKey);
-            var qualifiedName = string.Empty;
-            for (var i = 0; i < parameters.Count; i++)
+            switch (ASContext.CommonSettings.GeneratedMemberDefaultBodyStyle)
             {
-                if (i > 0) qualifiedName += "->";
-                var t = parameters[i];
-                if (t.Contains("->") && !t.StartsWith('(')) t = $"({t})";
-                qualifiedName += t;
+                case GeneratedMemberBodyStyle.ReturnDefaultValue:
+                    var type = member.Type;
+                    var expr = ASContext.Context.ResolveType(type, inClass.InFile);
+                    if ((expr.Flags & FlagType.Abstract) != 0 && !string.IsNullOrEmpty(expr.ExtendsType))
+                        type = expr.ExtendsType;
+                    var defaultValue = ASContext.Context.GetDefaultValue(type);
+                    if (!string.IsNullOrEmpty(defaultValue)) return $"return {defaultValue};";
+                    break;
             }
-            return qualifiedName;
+            return null;
         }
 
         protected override string GetGetterImplementationTemplate(MemberModel method)
@@ -582,32 +595,37 @@ namespace HaXeContext.Generators
             var template = TemplateUtils.GetTemplate("Switch");
             template = TemplateUtils.ReplaceTemplateVariable(template, "Name", sci.SelText);
             template = template.Replace(SnippetHelper.ENTRYPOINT, string.Empty);
-            var body = string.Empty;
+            var sb = new StringBuilder();
             for (var i = 0; i < inClass.Members.Count; i++)
             {
                 var it = inClass.Members[i];
-                body += SnippetHelper.BOUNDARY;
-                if (i > 0) body += "\n";
-                body += "\tcase " + it.Name;
+                sb.Append(SnippetHelper.BOUNDARY);
+                if (i > 0) sb.Append('\n');
+                sb.Append("\tcase ");
+                sb.Append(it.Name);
                 if (it.Parameters != null)
                 {
-                    body += "(";
+                    sb.Append('(');
                     for (var j = 0; j < it.Parameters.Count; j++)
                     {
-                        if (j > 0) body += ", ";
-                        body += it.Parameters[j].Name.TrimStart('?');
+                        if (j > 0) sb.Append(", ");
+                        sb.Append(it.Parameters[j].Name.TrimStart('?'));
                     }
-                    body += ")";
+                    sb.Append(')');
                 }
-                body += ":";
-                if (i == 0) body += ' ' + SnippetHelper.ENTRYPOINT;
+                sb.Append(':');
+                if (i == 0)
+                {
+                    sb.Append(' ');
+                    sb.Append(SnippetHelper.ENTRYPOINT);
+                }
             }
-            template = TemplateUtils.ReplaceTemplateVariable(template, "Body", body);
+            template = TemplateUtils.ReplaceTemplateVariable(template, "Body", sb.ToString());
             InsertCode(start, template, sci);
         }
     }
 
-    class GeneratorItem : ICompletionListItem
+    internal class GeneratorItem : ICompletionListItem
     {
         internal GeneratorJob Job { get; }
         readonly Action action;

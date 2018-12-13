@@ -11,6 +11,7 @@ using PluginCore.Controls;
 using PluginCore.Helpers;
 using PluginCore.Localization;
 using PluginCore.Managers;
+using ScintillaNet;
 
 namespace AS2Context
 {
@@ -39,7 +40,7 @@ namespace AS2Context
         protected bool hasLevels = true;
         protected string docType;
 
-        private AS2Settings as2settings;
+        private readonly AS2Settings as2settings;
 
         public override IContextSettings Settings
         {
@@ -103,15 +104,15 @@ namespace AS2Context
             features.arrayKey = "Array";
             features.dynamicKey = "*";
             features.importKey = "import";
-            features.typesPreKeys = new string[] { "import", "new", "instanceof", "extends", "implements" };
-            features.codeKeywords = new string[] { 
+            features.typesPreKeys = new[] { "import", "new", "instanceof", "extends", "implements" };
+            features.codeKeywords = new[] { 
                 "var", "function", "new", "delete", "instanceof", "return", "break", "continue",
                 "if", "else", "for", "in", "while", "do", "switch", "case", "default", "with",
                 "null", "undefined", "true", "false", "try", "catch", "finally", "throw"
             };
-            features.accessKeywords = new string[] { "override", "public", "private", "intrinsic", "static" };
-            features.declKeywords = new string[] { "var", "function" };
-            features.typesKeywords = new string[] { "import", "class", "interface" };
+            features.accessKeywords = new[] { "override", "public", "private", "intrinsic", "static" };
+            features.declKeywords = new[] { "var", "function" };
+            features.typesKeywords = new[] { "import", "class", "interface" };
             features.varKey = "var";
             features.functionKey = "function";
             features.getKey = "get";
@@ -207,7 +208,7 @@ namespace AS2Context
                     if (Directory.Exists(path))
                     {
                         PathModel aPath = new PathModel(path, this);
-                        ManualExploration(aPath, new string[] { "aso", "FP7", "FP8", "FP9" });
+                        ManualExploration(aPath, new[] { "aso", "FP7", "FP8", "FP9" });
                         AddPath(aPath);
                     }
                 }
@@ -350,7 +351,7 @@ namespace AS2Context
                     result.InFile = Context.CurrentModel;
                     return;
                 }
-                else if (token == "super")
+                if (token == "super")
                 {
                     if (inClass.IsVoid())
                     {
@@ -508,7 +509,7 @@ namespace AS2Context
                             package = import.Type.Substring(0, import.Type.Length - cname.Length - 1);
                         break;
                     }
-                    else if (features.hasImportsWildcard)
+                    if (features.hasImportsWildcard)
                     {
                         if (import.Name == "*" && import.Type.Length > 2)
                         {
@@ -773,8 +774,7 @@ namespace AS2Context
             {
                 string path = Path.Combine(aPath.Path, fileName);
                 // cached file
-                FileModel nFile;
-                if (aPath.TryGetFile(path, out nFile))
+                if (aPath.TryGetFile(path, out var nFile))
                 {
                     if (nFile.Context != this)
                     {
@@ -785,7 +785,7 @@ namespace AS2Context
                     return nFile.GetPublicClass();
                 }
                 // non-cached existing file
-                else if (File.Exists(path))
+                if (File.Exists(path))
                 {
                     nFile = GetFileModel(path);
                     if (nFile != null)
@@ -833,7 +833,7 @@ namespace AS2Context
                 var fullpath = Path.GetDirectoryName(cFile.FileName);
                 if (package.Length == 0 || !fullpath.EndsWithOrdinal(pathname))
                 {
-                    if (settings.FixPackageAutomatically && CurSciControl != null)
+                    if (settings.FixPackageAutomatically && CurSciControl is ScintillaControl sci)
                     {
                         Regex packagePattern = null;
                         if (cFile.Context.Settings.LanguageId == "AS2")
@@ -849,10 +849,10 @@ namespace AS2Context
                         var pos = -1;
                         var txt = "";
                         var p = 0;
-                        var counter = CurSciControl.Length;
+                        var counter = sci.Length;
                         while (p < counter)
                         {
-                            var c = (char) CurSciControl.CharAt(p++);
+                            var c = (char) sci.CharAt(p++);
                             txt += c;
                             if (txt.Length > 5 && c <= 32)
                             {
@@ -888,8 +888,8 @@ namespace AS2Context
                                 if (correctPath != null)
                                 {
                                     correctPath = correctPath.Replace(Path.DirectorySeparatorChar, '.');
-                                    CurSciControl.SetSel(pos, pos + cFile.Package.Length);
-                                    CurSciControl.ReplaceSel(correctPath);
+                                    sci.SetSel(pos, pos + cFile.Package.Length);
+                                    sci.ReplaceSel(correctPath);
                                     orgid = "Info.PackageDidntMatchFilePath";
                                 }
                             }
@@ -918,7 +918,7 @@ namespace AS2Context
                         if (!cFile.FileName.ToUpper().EndsWithOrdinal(filename.ToUpper()))
                         {
                             string org = TextHelper.GetString("Info.TypeDontMatchFileName");
-                            string msg = String.Format(org, cname) + "\n" + cFile.FileName;
+                            string msg = string.Format(org, cname) + "\n" + cFile.FileName;
                             MessageBar.ShowWarning(msg);
                         }
                         else MessageBar.HideWarning();
@@ -1224,12 +1224,12 @@ namespace AS2Context
                 completionCache = new CompletionCache(this, elements);
 
                 // known classes colorization
-                if (!CommonSettings.DisableKnownTypesColoring && !settings.LazyClasspathExploration && CurSciControl != null)
+                if (!CommonSettings.DisableKnownTypesColoring && !settings.LazyClasspathExploration && CurSciControl is ScintillaControl sci)
                 {
                     try
                     {
-                        CurSciControl.KeyWords(1, completionCache.Keywords); // additional-keywords index = 1
-                        CurSciControl.Colourise(0, -1); // re-colorize the editor
+                        sci.KeyWords(1, completionCache.Keywords); // additional-keywords index = 1
+                        sci.Colourise(0, -1); // re-colorize the editor
                     } 
                     catch (AccessViolationException){} // catch memory errors
                 }
@@ -1279,19 +1279,12 @@ namespace AS2Context
         
         #region command line compiler
 
-        override public bool CanBuild
-        {
-            get { return cFile != null && cFile != FileModel.Ignore; }
-        }
+        override public bool CanBuild => cFile != null && cFile != FileModel.Ignore;
 
         /// <summary>
         /// Retrieve the context's default compiler path
         /// </summary>
-        public override string GetCompilerPath()
-        {
-            if (as2settings != null) return as2settings.GetDefaultSDK().Path;
-            else return null;
-        }
+        public override string GetCompilerPath() => as2settings?.GetDefaultSDK().Path;
 
         /// <summary>
         /// Check current file's syntax
@@ -1355,9 +1348,9 @@ namespace AS2Context
                     command += " -version "+majorVersion;
                 // classpathes
                 foreach(PathModel aPath in classPath)
-                if (aPath.Path != temporaryPath
-                    && !aPath.Path.StartsWith(mtascPath, StringComparison.OrdinalIgnoreCase))
-                    command += " -cp \"" + aPath.Path.TrimEnd('\\') + "\"";
+                    if (aPath.Path != temporaryPath
+                        && !aPath.Path.StartsWith(mtascPath, StringComparison.OrdinalIgnoreCase))
+                        command += " -cp \"" + aPath.Path.TrimEnd('\\') + "\"";
                 
                 // run
                 string filePath = NormalizePath(cFile.BasePath);
@@ -1424,10 +1417,9 @@ namespace AS2Context
                 bool noPlay = false;
                 if (mPar.Count > 0)
                 {
-                    string op;
                     for (int i = 0; i < mPar.Count; i++)
                     {
-                        op = mPar[i].Groups["switch"].Value;
+                        var op = mPar[i].Groups["switch"].Value;
                         int start = mPar[i].Index + mPar[i].Length;
                         int end = (mPar.Count > i + 1) ? mPar[i + 1].Index : start;
                         if ((op == "-swf") && (outputFile == null) && (mPlayIndex < 0))

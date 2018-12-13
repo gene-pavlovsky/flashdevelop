@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using ASCompletion.Completion;
 using ASCompletion.Context;
+using ASCompletion.Settings;
 using HaXeContext.TestUtils;
 using NSubstitute;
 using NUnit.Framework;
@@ -35,6 +36,7 @@ namespace HaXeContext.Generators
         public void Setup()
         {
             ASContext.CommonSettings.DeclarationModifierOrder = new[] {"public", "protected", "internal", "private", "static", "inline", "override"};
+            ASContext.CommonSettings.GeneratedMemberDefaultBodyStyle = GeneratedMemberBodyStyle.ReturnDefaultValue;
             ASContext.Context.Settings.GenerateImports.Returns(true);
             SetHaxeFeatures(sci);
         }
@@ -191,6 +193,30 @@ namespace HaXeContext.Generators
                     .Returns(null)
                     .SetName("Issue1982. Case 6")
                     .SetDescription("https://github.com/fdorg/flashdevelop/issues/1982");
+                yield return new TestCaseData("BeforeGenerateFunction_issue2478_1", GeneratorJobType.Function, true)
+                    .Returns(ReadAllText("AfterGenerateFunction_issue2478_1"))
+                    .SetName("test(a[0]()).<generate> Generate function. Issue2478. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2478");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2493_1", GeneratorJobType.GetterSetter, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2493_1"))
+                    .SetName("var s<generate> = new Sprite(). Generate getter and setter. Issue2493. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2493");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2493_1", GeneratorJobType.Getter, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2493_2"))
+                    .SetName("var s<generate> = new Sprite(). Generate getter. Issue2493. Case 2")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2493");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2493_1", GeneratorJobType.Setter, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2493_3"))
+                    .SetName("var s<generate> = new Sprite(). Generate setter. Issue2493. Case 3")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2493");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2499_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2499_1"))
+                    .SetName("(foo<T>(String:Class<T>):T).<generate> Assign statement to variable. Issue2499. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2499");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2499_2", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2499_2"))
+                    .SetName("(foo<T:{}>(String:Class<T>):T).<generate> Assign statement to variable. Issue2499. Case 2")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2499");
             }
         }
 
@@ -838,8 +864,7 @@ namespace HaXeContext.Generators
                     .SetName("Infer var type. Case 17.");
                 yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_18", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_18"))
-                    .SetName("Infer var type. Case 18.")
-                    .Ignore("Result should be `var v1:Class<Dynamic> = v;` instead of `var v1:Dynamic = v;`");
+                    .SetName("Infer var type. Case 18.");
                 yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_19", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_19"))
                     .SetName("Infer var type. Case 19.");
@@ -913,6 +938,51 @@ namespace HaXeContext.Generators
                 yield return new TestCaseData("BeforeAssignStatementToVar_inferVar_issue2450_4", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterAssignStatementToVar_inferVar_issue2450_4"))
                     .SetName("Infer var type. Issue 2450. Case 4.");
+            }
+        }
+
+        static IEnumerable<TestCaseData> AssignStatementToVarIssue2569TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2569_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_issue2569_1"))
+                    .SetName("trace<generator>. Issue 2569. Case 1.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2569");
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2569_2", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_issue2569_2"))
+                    .SetName("trace<generator>. Issue 2569. Case 2.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2569");
+            }
+        }
+
+        static IEnumerable<TestCaseData> AssignStatementToVarIssue2217TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2217_1", GeneratorJobType.AssignStatementToVar, false)
+                    .Returns(null)
+                    .SetName("Issue2217.new()<generator>. Issue 2217. Case 1.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2217");
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2217_2", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_issue2217_2"))
+                    .SetName("Issue2217.new<generator>. Issue 2217. Case 2.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2217");
+            }
+        }
+
+        static IEnumerable<TestCaseData> AssignStatementToVarIssue2574TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2574_1", GeneratorJobType.AssignStatementToVar, false)
+                    .Returns(null)
+                    .SetName("Issue2574.trace()<generator>. Issue 2574. Case 1.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2574");
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2574_2", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_issue2574_2"))
+                    .SetName("Issue2574.trace()<generator>. Issue 2574. Case 2.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2574");
             }
         }
 
@@ -1108,19 +1178,79 @@ namespace HaXeContext.Generators
             }
         }
 
+        static IEnumerable<TestCaseData> AssignStatementToVarIssue2471TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2471_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_issue2471_1"))
+                    .SetName("a[0].<generate> Assign statement to var. Issue 2471. Case 1.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2471");
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2471_2", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_issue2471_2"))
+                    .SetName("a[0].<generate> Assign statement to var. Issue 2471. Case 2.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2471");
+            }
+        }
+
+        static IEnumerable<TestCaseData> AssignStatementToVarIssue2475TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2475_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_issue2475_1"))
+                    .SetName("a[0]().<generate> Assign statement to var. Issue 2451. Case 1.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2475");
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2475_2", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_issue2475_2"))
+                    .SetName("a[0][0]().<generate> Assign statement to var. Issue 2451. Case 2.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2475");
+            }
+        }
+
+        static IEnumerable<TestCaseData> AssignStatementToVarIssue2203TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2203_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_issue2203_1"))
+                    .SetName("(foo<T>(a):T).<generate> Assign statement to var. Issue 2203. Case 1.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2203");
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2203_2", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_issue2203_2"))
+                    .SetName("(foo<T>(a):T).<generate> Assign statement to var. Issue 2203. Case 2.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2203");
+                yield return new TestCaseData("BeforeAssignStatementToVar_issue2203_3", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_issue2203_3"))
+                    .SetName("(foo<T>(a):T).<generate> Assign statement to var. Inference the type of variable. Issue 2203. Case 3.")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2203");
+            }
+        }
+
         static IEnumerable<TestCaseData> AssignStatementToVarTestCases
         {
             get
             {
                 yield return new TestCaseData("BeforeAssignStatementToVar_unsafe_cast_1", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterAssignStatementToVar_unsafe_cast_1"))
-                    .SetName("cast v|");
+                    .SetName("cast v<generate>");
                 yield return new TestCaseData("BeforeAssignStatementToVar_unsafe_cast_2", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterAssignStatementToVar_unsafe_cast_2"))
-                    .SetName("cast v.length|");
+                    .SetName("cast v.length<generate>");
                 yield return new TestCaseData("BeforeAssignStatementToVar_unsafe_cast_3", GeneratorJobType.AssignStatementToVar, true)
                     .Returns(ReadAllText("AfterAssignStatementToVar_unsafe_cast_3"))
-                    .SetName("cast []|");
+                    .SetName("cast []<generate>");
+                yield return new TestCaseData("BeforeAssignStatementToVar_ParameterizedFunction_case1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_ParameterizedFunction_case1"))
+                    .SetName("(foo<T>(stringValue):Array<T>)<generate>");
+                yield return new TestCaseData("BeforeAssignStatementToVar_ParameterizedFunction_issue2510_1", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_ParameterizedFunction_issue2510_1"))
+                    .SetName("SomeType.(foo<T>(value):T).foo<generate>. Assign statement to variable. Issue 2510")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2510");
+                yield return new TestCaseData("BeforeAssignStatementToVar_ParameterizedFunction_issue2510_2", GeneratorJobType.AssignStatementToVar, true)
+                    .Returns(ReadAllText("AfterAssignStatementToVar_ParameterizedFunction_issue2510_2"))
+                    .SetName("SomeType.(foo<T>('string'):T).charAt<generate>. Assign statement to variable. Issue 2510")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2510");
             }
         }
 
@@ -1170,6 +1300,25 @@ namespace HaXeContext.Generators
                     .Returns(ReadAllText("AfterAddInterfaceDefTests_issue1733_4"))
                     .SetName("var v(default, default). Add to interface. Issue 1733. Case 4")
                     .SetDescription("https://github.com/fdorg/flashdevelop/issues/1733");
+            }
+        }
+
+        static IEnumerable<TestCaseData> DeclareVariableIssue2558TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeDeclareVariable_issue2558_1", GeneratorJobType.Variable, true)
+                    .Returns(ReadAllText("AfterDeclareVariable_issue2558_1"))
+                    .SetName("char<generator> = ''.charAt(0). Declare private variable. Issue 2558. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2558");
+                yield return new TestCaseData("BeforeDeclareVariable_issue2558_2", GeneratorJobType.Variable, true)
+                    .Returns(ReadAllText("AfterDeclareVariable_issue2558_2"))
+                    .SetName("char<generator> = ''.charAt. Declare private variable. Issue 2558. Case 2")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2558");
+                yield return new TestCaseData("BeforeDeclareVariable_issue2558_3", GeneratorJobType.Variable, true)
+                    .Returns(ReadAllText("AfterDeclareVariable_issue2558_3"))
+                    .SetName("length<generator> = ''.length. Declare private variable. Issue 2558. Case 3")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2558");
             }
         }
 
@@ -1298,6 +1447,28 @@ namespace HaXeContext.Generators
             }
         }
 
+        static IEnumerable<TestCaseData> ImplementInterfaceIssue2531TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeImplementInterface_issue2531_1", GeneratorJobType.ImplementInterface, true)
+                    .Returns(ReadAllText("AfterImplementInterface_issue2531_1"))
+                    .SetName("Implement interface methods. Issue 2531. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2531");
+            }
+        }
+
+        static IEnumerable<TestCaseData> ImplementInterfaceIssue2553TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeImplementInterface_issue2553_1", GeneratorJobType.ImplementInterface, true)
+                    .Returns(ReadAllText("AfterImplementInterface_issue2553_1"))
+                    .SetName("Implement interface methods. Issue 2553. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2553");
+            }
+        }
+
         static IEnumerable<TestCaseData> GenerateEventHandlerIssue751TestCases
         {
             get
@@ -1358,6 +1529,45 @@ namespace HaXeContext.Generators
             }
         }
 
+        static IEnumerable<TestCaseData> InterfaceContextualGeneratorTestCases
+        {
+            get
+            {
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2473_1", GeneratorJobType.GetterSetter, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2473_1"))
+                    .SetName("Generate Getter and Setter. Issue 2473. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2473");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2473_2", GeneratorJobType.Getter, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2473_2"))
+                    .SetName("Generate Getter. Issue 2473. Case 2")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2473");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2473_3", GeneratorJobType.Setter, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2473_3"))
+                    .SetName("Generate Setter. Issue 2473. Case 3")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2473");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2473_4", GeneratorJobType.FunctionPublic, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2473_4"))
+                    .SetName("Generate Function. Issue 2473. Case 4")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2473");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2473_5", -1, false)
+                    .Returns(null)
+                    .SetName("Issue 2473. Case 5")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2473");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2473_7", GeneratorJobType.Interface, false)
+                    .Returns(null)
+                    .SetName("interface A extends b<generate>. Issue 2473. Case 7")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2473");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2473_8", GeneratorJobType.Class, false)
+                    .Returns(null)
+                    .SetName("interface A extends B<generate>. Issue 2473. Case 8")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2473");
+                yield return new TestCaseData("BeforeGenerateGetterSetter_issue2473_9", GeneratorJobType.Interface, true)
+                    .Returns(ReadAllText("AfterGenerateGetterSetter_issue2473_9"))
+                    .SetName("interface A extends B<generate>. Issue 2473. Case 8")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2473");
+            }
+        }
+
         [
             Test,
             TestCaseSource(nameof(ContextualGeneratorTestCases)),
@@ -1387,6 +1597,9 @@ namespace HaXeContext.Generators
             TestCaseSource(nameof(AssignStatementToVarIssue2306TestCases)),
             TestCaseSource(nameof(AssignStatementToVarIssue2455TestCases)),
             TestCaseSource(nameof(AssignStatementToVarIssue2457TestCases)),
+            TestCaseSource(nameof(AssignStatementToVarIssue2471TestCases)),
+            TestCaseSource(nameof(AssignStatementToVarIssue2475TestCases)),
+            TestCaseSource(nameof(AssignStatementToVarIssue2203TestCases)),
             TestCaseSource(nameof(AssignStatementToVarInferParameterVarTestCases)),
             TestCaseSource(nameof(AssignStatementToVarInferParameterVarIssue2350TestCases)),
             TestCaseSource(nameof(AssignStatementToVarInferParameterVarIssue2371TestCases)),
@@ -1395,9 +1608,13 @@ namespace HaXeContext.Generators
             TestCaseSource(nameof(AssignStatementToVarInferVarIssue2444TestCases)),
             TestCaseSource(nameof(AssignStatementToVarInferVarIssue2447TestCases)),
             TestCaseSource(nameof(AssignStatementToVarInferVarIssue2450TestCases)),
+            TestCaseSource(nameof(AssignStatementToVarIssue2569TestCases)),
+            TestCaseSource(nameof(AssignStatementToVarIssue2217TestCases)),
+            TestCaseSource(nameof(AssignStatementToVarIssue2574TestCases)),
             TestCaseSource(nameof(AssignStatementToVarTestCases)),
             TestCaseSource(nameof(AddToInterfaceTestCases)),
             TestCaseSource(nameof(AddToInterfaceIssue1733TestCases)),
+            TestCaseSource(nameof(DeclareVariableIssue2558TestCases)),
             TestCaseSource(nameof(GenerateFunctionTestCases)),
             TestCaseSource(nameof(GenerateFunctionIssue2200TestCases)),
             TestCaseSource(nameof(GenerateFunctionIssue394TestCases)),
@@ -1405,10 +1622,13 @@ namespace HaXeContext.Generators
             TestCaseSource(nameof(GenerateVariableIssue2201TestCases)),
             TestCaseSource(nameof(ImplementInterfaceTestCases)),
             TestCaseSource(nameof(ImplementInterfaceIssue2264TestCases)),
+            TestCaseSource(nameof(ImplementInterfaceIssue2531TestCases)),
+            TestCaseSource(nameof(ImplementInterfaceIssue2553TestCases)),
             TestCaseSource(nameof(GenerateEventHandlerIssue751TestCases)),
             TestCaseSource(nameof(CreateNewClassIssue2393TestCases)),
             TestCaseSource(nameof(GenerateGetterSetterInAbstractIssue2403TestCases)),
             TestCaseSource(nameof(GenerateGetterSetterInferVar2456TestCases)),
+            TestCaseSource(nameof(InterfaceContextualGeneratorTestCases)),
         ]
         public string ContextualGenerator(string fileName, GeneratorJobType job, bool hasGenerator) => ContextualGenerator(sci, fileName, job, hasGenerator);
 
@@ -1527,6 +1747,29 @@ namespace HaXeContext.Generators
             var result = ContextualGenerator(sci, fileName, job, hasGenerator);
             ((HaXeSettings) ASContext.Context.Settings).DisableTypeDeclaration = false;
             return result;
+        }
+
+        static IEnumerable<TestCaseData> ParseFunctionParametersTestCases
+        {
+            get
+            {
+                yield return new TestCaseData("ParseFunctionParameters_issue2478_1")
+                    .Returns(1)
+                    .SetName("test(a[0]()). Parse function parameters. Issue2478. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2478");
+                yield return new TestCaseData("ParseFunctionParameters_issue2478_2")
+                    .Returns(2)
+                    .SetName("test(a[0](), a[1]()). Parse function parameters. Issue2478. Case 2")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2478");
+            }
+        }
+        
+        [Test, TestCaseSource(nameof(ParseFunctionParametersTestCases))]
+        public int ParseFunctionParameters(string fileName)
+        {
+            SetSrc(sci, ReadAllText(fileName));
+            SetCurrentFile(fileName);
+            return ASGenerator.ParseFunctionParameters(sci, sci.CurrentPos).Count;
         }
     }
 }

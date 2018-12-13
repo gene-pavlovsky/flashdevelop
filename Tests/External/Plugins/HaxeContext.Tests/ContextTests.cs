@@ -25,47 +25,37 @@ namespace HaXeContext
             get
             {
                 yield return new TestCaseData(new List<string> {"haxe.Timer->Type.ValueType"})
-                    .SetName("haxe.Timer->Type.ValueType")
                     .Returns(new[] {"haxe.Timer", "Type.ValueType"});
                 yield return new TestCaseData(new List<string> {"{t:haxe.Timer, v:Type.ValueType}"})
-                    .SetName("{t:haxe.Timer, v:Type.ValueType}")
                     .Returns(new[] {"haxe.Timer", "Type.ValueType"});
                 yield return new TestCaseData(new List<string> {"{t:haxe.Timer}->Type.ValueType"})
-                    .SetName("{t:haxe.Timer}->Type.ValueType")
                     .Returns(new[] {"haxe.Timer", "Type.ValueType"});
                 yield return new TestCaseData(new List<string> {"{t:haxe.Timer->Type.ValueType}"})
-                    .SetName("{t:haxe.Timer->Type.ValueType}")
                     .Returns(new[] {"haxe.Timer", "Type.ValueType"});
                 yield return new TestCaseData(new List<string> {"{t:haxe.Timer->Type.ValueType->haxe.ds.Vector<Int>}"})
-                    .SetName("{t:haxe.Timer->Type.ValueType->haxe.ds.Vector<Int>}")
                     .Returns(new[] {"haxe.Timer", "Type.ValueType", "haxe.ds.Vector", "Int"});
                 yield return new TestCaseData(new List<string> {"{t:haxe.Timer->Type.ValueType}->haxe.ds.Vector<Int>"})
-                    .SetName("{t:haxe.Timer->Type.ValueType}->haxe.ds.Vector<Int>")
                     .Returns(new[] {"haxe.Timer", "Type.ValueType", "haxe.ds.Vector", "Int"});
                 yield return new TestCaseData(new List<string> {"haxe.Timer->Type.ValueType->{v:haxe.ds.Vector<Int>}"})
-                    .SetName("haxe.Timer->Type.ValueType->{v:haxe.ds.Vector<Int>}")
                     .Returns(new[] {"haxe.Timer", "Type.ValueType", "haxe.ds.Vector", "Int"});
                 yield return new TestCaseData(new List<string> {"haxe.Timer->haxe.Timer"})
-                    .SetName("haxe.Timer->haxe.Timer")
                     .Returns(new[] {"haxe.Timer"});
                 yield return new TestCaseData(new List<string> {"haxe.ds.Vector<{c:haxe.Timer->Type.ValueType}>"})
-                    .SetName("haxe.ds.Vector<{c:haxe.Timer->Type.ValueType}>")
                     .Returns(new[] {"haxe.ds.Vector", "haxe.Timer", "Type.ValueType"});
                 yield return new TestCaseData(new List<string> {"Array<Int>->Map<String, Int>->haxe.ds.Vector<{c:haxe.Timer->Type.ValueType}>"})
-                    .SetName("Array<Int>->Map<String, Int>->haxe.ds.Vector<{c:haxe.Timer->Type.ValueType}>")
                     .Returns(new[] {"Array", "Int", "Map", "String", "haxe.ds.Vector", "haxe.Timer", "Type.ValueType"});
                 yield return new TestCaseData(new List<string> {"Array<Array<Map<haxe.ds.Vector<haxe.Timer>, Type.ValueType>>>"})
-                    .SetName("Array<Array<Map<haxe.ds.Vector<haxe.Timer>, Type.ValueType>>>")
                     .Returns(new[] {"Array", "Map", "haxe.ds.Vector", "haxe.Timer", "Type.ValueType"});
                 yield return new TestCaseData(new List<string> {"Array<Array<Map<haxe.ds.Vector<haxe.Timer>,Type.ValueType>>>"})
-                    .SetName("Array<Array<Map<haxe.ds.Vector<haxe.Timer>,Type.ValueType>>>")
                     .Returns(new[] {"Array", "Map", "haxe.ds.Vector", "haxe.Timer", "Type.ValueType"});
                 yield return new TestCaseData(new List<string> {"Array<Array<Map<haxe.ds.Vector<{t:haxe.Timer}>, Type.ValueType>>>"})
-                    .SetName("Array<Array<Map<haxe.ds.Vector<{t:haxe.Timer}>, Type.ValueType>>>")
                     .Returns(new[] {"Array", "Map", "haxe.ds.Vector", "haxe.Timer", "Type.ValueType"});
                 yield return new TestCaseData(new List<string> {"Array<Array<Map<haxe.ds.Vector<{t:haxe.Timer}>->Type.ValueType, Int>>>"})
-                    .SetName("Array<Array<Map<haxe.ds.Vector<{t:haxe.Timer}>->Type.ValueType, Int>>>")
                     .Returns(new[] {"Array", "Map", "haxe.ds.Vector", "haxe.Timer", "Type.ValueType", "Int"});
+                yield return new TestCaseData(new List<string> {"Dynamic->PosInfos->Void"})
+                    .Returns(new[] {"Dynamic", "PosInfos", "Void"});
+                yield return new TestCaseData(new List<string> {"Dynamic->(Dynamic->PosInfos)->Void"})
+                    .Returns(new[] {"Dynamic", "PosInfos", "Void"});
             }
         }
 
@@ -122,13 +112,59 @@ namespace HaXeContext
         [Test, TestCaseSource(nameof(ResolveDotContextIssue750TestCases))]
         public void ResolveDotContextIssue750(string fileName, MemberModel code)
         {
-            var sourceText = ReadAllText(fileName);
             ((HaXeSettings)ASContext.Context.Settings).CompletionMode = HaxeCompletionModeEnum.FlashDevelop;
-            SetSrc(sci, sourceText);
+            SetSrc(sci, ReadAllText(fileName));
             var mix = new MemberList();
-            var expr = ASComplete.GetExpression(sci, sci.CurrentPos);
+            var expr = ASComplete.GetExpressionType(sci, sci.CurrentPos);
             ASContext.Context.ResolveDotContext(sci, expr, mix);
             Assert.AreEqual(code, mix.Items.FirstOrDefault());
+        }
+
+        static IEnumerable<TestCaseData> ResolveDotContextIssue2467TestCases
+        {
+            get
+            {
+                yield return new TestCaseData("ResolveDotContext_issue2467_1", true)
+                    .SetName("haxe.macro.Expr.<complete> ResolveDotContext. Issue 2467. Case 1")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2467");
+                yield return new TestCaseData("ResolveDotContext_issue2467_2", false)
+                    .SetName("haxe.macro.<complete> ResolveDotContext. Issue 2467. Case 2")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2467");
+                yield return new TestCaseData("ResolveDotContext_issue2467_3", false)
+                    .SetName("staticVar.<complete> ResolveDotContext. Issue 2467. Case 3")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2467");
+                yield return new TestCaseData("ResolveDotContext_issue2467_4", true)
+                    .SetName("CurrentClass.<complete> ResolveDotContext. Issue 2467. Case 4")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2467");
+                yield return new TestCaseData("ResolveDotContext_issue2467_5", false)
+                    .SetName("SubType.<complete> ResolveDotContext. Issue 2467. Case 5")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2467");
+                yield return new TestCaseData("ResolveDotContext_issue2467_6", true)
+                    .SetName("CurrentAbstract.<complete> ResolveDotContext. Issue 2467. Case 6")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2467");
+                yield return new TestCaseData("ResolveDotContext_issue2467_7", true)
+                    .SetName("CurrentInterface.<complete> ResolveDotContext. Issue 2467. Case 7")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2467");
+                yield return new TestCaseData("ResolveDotContext_issue2467_8", true)
+                    .SetName("CurrentEnum.<complete> ResolveDotContext. Issue 2467. Case 8")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2467");
+                yield return new TestCaseData("ResolveDotContext_issue2467_9", true)
+                    .SetName("CurrentTypedef.<complete> ResolveDotContext. Issue 2467. Case 9")
+                    .SetDescription("https://github.com/fdorg/flashdevelop/issues/2467");
+            }
+        }
+
+        [Test, TestCaseSource(nameof(ResolveDotContextIssue2467TestCases))]
+        public void ResolveDotContextIssue2467(string fileName, bool resultIsNotEmpty)
+        {
+            ((HaXeSettings)ASContext.Context.Settings).CompletionMode = HaxeCompletionModeEnum.FlashDevelop;
+            ASContext.Context.CurrentModel.FileName = fileName;
+            SetSrc(sci, ReadAllText(fileName));
+            var result = new MemberList();
+            var expr = ASComplete.GetExpressionType(sci, sci.CurrentPos);
+            ASContext.Context.ResolveDotContext(sci, expr, result);
+            if (resultIsNotEmpty) Assert.IsNotEmpty(result);
+            else Assert.IsEmpty(result);
         }
 
         static IEnumerable<TestCaseData> IsImportedTestCases

@@ -535,7 +535,7 @@ namespace ASCompletion
                         case EventType.Command:
                             de = e as DataEvent;
                             string command = de.Action ?? "";
-                            if (command.StartsWith("ASCompletion.", StringComparison.Ordinal))
+                            if (command.StartsWithOrdinal("ASCompletion."))
                             {
                                 string cmdData = de.Data as string;
                                 switch (command)
@@ -1215,29 +1215,20 @@ namespace ASCompletion
             var ctx = ASContext.Context;
             if (!ctx.IsFileValid) return;
             lastHoverPosition = position;
-
-            // get word at mouse position
-            var style = sci.BaseStyleAt(position);
-            if (!ASComplete.IsTextStyle(style) && (!ctx.Features.hasInterfaces || !ctx.CodeComplete.IsStringInterpolationStyle(sci, position))) return;
+            if (!ctx.CodeComplete.IsAvailableForToolTip(sci, position)) return;
             position = ASComplete.ExpressionEndPosition(sci, position);
             var result = ASComplete.GetExpressionType(sci, position, false, true);
-
-            // set tooltip
-            if (!result.IsNull())
+            if (Control.ModifierKeys == Keys.Control)
             {
-                if (Control.ModifierKeys == Keys.Control)
-                {
-                    var code = ASComplete.GetCodeTipCode(result);
-                    if (code == null) return;
-                    UITools.CodeTip.Show(sci, position - result.Path.Length, code);
-                }
-                else
-                {
-                    var text = ASComplete.GetToolTipText(result);
-                    if (text == null) return;
-                    // show tooltip
-                    UITools.Tip.ShowAtMouseLocation(text);
-                }
+                var code = ASComplete.GetCodeTipCode(result);
+                if (code == null) return;
+                UITools.CodeTip.Show(sci, position - result.Path.Length, code);
+            }
+            else
+            {
+                var text = ASComplete.GetToolTipText(result);
+                if (text == null) return;
+                UITools.Tip.ShowAtMouseLocation(text);
             }
         }
 

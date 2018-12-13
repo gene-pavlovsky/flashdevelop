@@ -67,7 +67,7 @@ namespace AS3Context.Completion
                         // for example: [].<complete>
                         if (expression[0] == '#' && i == count)
                         {
-                            var type = ctx.ResolveType(features.arrayKey, inFile);
+                            var type = ResolveType(features.arrayKey, inFile);
                             if (type.IsVoid()) break;
                             expression = type.Name + ".#" + expression.Substring(("#" + i + "~").Length);
                             context.SubExpressions.RemoveAt(i);
@@ -79,7 +79,7 @@ namespace AS3Context.Completion
                 }
                 if (expression.Length > 1 && expression[0] is char c && (c == '"' || c == '\''))
                 {
-                    var type = ctx.ResolveType(features.stringKey, inFile);
+                    var type = ResolveType(features.stringKey, inFile);
                     // for example: ""|, ''|
                     if (context.SubExpressions == null) expression = type.Name + ".#.";
                     // for example: "".<complete>, ''.<complete>
@@ -88,7 +88,6 @@ namespace AS3Context.Completion
                         var pattern = c + ".#" + (context.SubExpressions.Count - 1) + "~";
                         var startIndex = expression.IndexOfOrdinal(pattern) + pattern.Length;
                         expression = type.Name + ".#" + expression.Substring(startIndex);
-                        if (context.SubExpressions.Count == 1) context.SubExpressions = null;
                     }
                 }
                 // for example: new <T>[].<complete>

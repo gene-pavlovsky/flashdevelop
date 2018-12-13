@@ -559,7 +559,25 @@ namespace HaXeContext.Model
                     }
                     else if (c1 == '{')
                     {
-                        if (!inType || valueLength == 0 || valueBuffer[valueLength - 1] == '<' || paramBraceCount > 0 || paramTempCount > 0)
+                        // for example: function(v:String):{v<cursor>String {
+                        if (inAnonType && inType && valueLength > 0
+                            && valueBuffer[valueLength - 1] != ':'
+                            && valueBuffer[valueLength - 1] != '>'
+                            && valueBuffer[valueLength - 1] != '<'
+                            && valueBuffer[valueLength - 1] != '(')
+                        {
+                            foundColon = false;
+                            inAnonType = false;
+                            inType = false;
+                            inValue = false;
+                            hadValue = false;
+                            inGeneric = false;
+                            valueLength = 0;
+                            length = 0;
+                            context = 0;
+                            paramBraceCount = 0;
+                        }
+                        else if (!inType || valueLength == 0 || valueBuffer[valueLength - 1] == '<' || paramBraceCount > 0 || paramTempCount > 0)
                         {
                             paramBraceCount++;
                             stopParser = true;
@@ -628,6 +646,28 @@ namespace HaXeContext.Model
                         }
                     }
                     else if ((c1 == ':' || c1 == ',') && paramBraceCount > 0) stopParser = true;
+                    /**
+                     * for example:
+                     * package;
+                     * class Foo {
+                     *     var v1 : {
+                     *     var v2 : String;
+                     * }
+                     */
+                    else if (c1 == ';' && paramBraceCount > 0 && inAnonType)
+                    {
+                        inType = false;
+                        inAnonType = false;
+                        inValue = false;
+                        inGeneric = false;
+                        length = 0;
+                        context = 0;
+                        curMember = null;
+                        foundColon = false;
+                        valueLength = 0;
+                        paramBraceCount = 0;
+                        continue;
+                    }
 
                     // end of value
                     if ((valueError || (!stopParser && paramBraceCount == 0 && paramParCount == 0 && paramSqCount == 0 && paramTempCount == 0))
@@ -645,12 +685,7 @@ namespace HaXeContext.Model
                     // in params, store the default value
                     else if ((inParams || inType) && valueLength < VALUE_BUFFER)
                     {
-                        if (c1 <= 32)
-                        {
-                            if (valueLength > 0 && valueBuffer[valueLength - 1] != ' ')
-                                valueBuffer[valueLength++] = ' ';
-                        }
-                        else valueBuffer[valueLength++] = c1;
+                        if (c1 > 32) valueBuffer[valueLength++] = c1;
                     }
 
                     // detect keywords
@@ -719,6 +754,7 @@ namespace HaXeContext.Model
                         curMember.Type = param;
                         length = 0;
                         inType = false;
+                        if (c1 == ';') curMember = null;
                     }
                     // method parameter's default value 
                     else if ((curMember.Flags & FlagType.Variable) > 0)
@@ -1429,11 +1465,10 @@ namespace HaXeContext.Model
                 for (var i = members.Count - 1; i >= 0; i--)
                 {
                     var member = members[i];
-                    if (((member.Flags & FlagType.Variable) != 0)
-                        && member.Type != null && member.Type.Contains("->"))
+                    if ((member.Flags & FlagType.Variable) != 0 && member.Type is string type && IsFunctionType(type))
                     {
                         member.Flags |= FlagType.Function;
-                        FunctionTypeToMemberModel(member.Type, member, features);
+                        FunctionTypeToMemberModel(type, features, member);
                     }
                 }
             }
@@ -1670,7 +1705,8 @@ namespace HaXeContext.Model
             // when not in a class, parse if/for/while/switch/try...catch blocks
             if (ScriptMode)
             {
-                if (token == "catch" || token == "for" || token == "case")
+                if (token == "case") curModifiers = 0;
+                else if (token == "catch" || token == "for")
                 {
                     curModifiers = 0;
                     foundKeyword = FlagType.Variable;
@@ -1707,7 +1743,6 @@ namespace HaXeContext.Model
                 modifiersLine = 0;
                 return true;
             }
-
 
             /* EVAL DECLARATION */
 
@@ -1985,7 +2020,7 @@ namespace HaXeContext.Model
                             // class member
                             else if (curClass != null)
                             {
-                                FlagType forcePublic = FlagType.Interface;
+                                var forcePublic = FlagType.Interface;
                                 forcePublic |= FlagType.Intrinsic | FlagType.TypeDef;
                                 if ((curClass.Flags & forcePublic) > 0)
                                     member.Access = Visibility.Public;
@@ -2018,7 +2053,7 @@ namespace HaXeContext.Model
                         member = new MemberModel();
                         member.Comments = curComment;
 
-                        int t = token.IndexOf('<');
+                        var t = token.IndexOf('<');
                         if (t > 0)
                         {
                             member.Template = token.Substring(t);
@@ -2133,10 +2168,11 @@ namespace HaXeContext.Model
 
         #endregion
 
-        public static MemberModel FunctionTypeToMemberModel(string type, ContextFeatures features) => FunctionTypeToMemberModel(type, new MemberModel(), features);
+        public static MemberModel FunctionTypeToMemberModel(string type, ContextFeatures features) => FunctionTypeToMemberModel(type, features, new MemberModel());
 
-        static MemberModel FunctionTypeToMemberModel(string type, MemberModel result, ContextFeatures features)
+        internal static MemberModel FunctionTypeToMemberModel(string type, ContextFeatures features, MemberModel result)
         {
+            type = CleanFunctionType(type);
             var voidKey = features.voidKey;
             if (result.Parameters == null) result.Parameters = new List<MemberModel>();
             var parCount = 0;
@@ -2186,7 +2222,7 @@ namespace HaXeContext.Model
                 }
                 if (parameterType == null)
                 {
-                    if (i == typeLength - 1 && i > startPosition) result.Type = type.Substring(startPosition);
+                    if (i == typeLength - 1 && i >= startPosition) result.Type = type.Substring(startPosition);
                     continue;
                 }
                 var parameterName = $"parameter{result.Parameters.Count}";
@@ -2195,12 +2231,54 @@ namespace HaXeContext.Model
                     parameterName = $"?{parameterName}";
                     parameterType = parameterType.TrimStart('?');
                 }
+                parameterType = CleanFunctionType(parameterType);
                 if (i == typeLength - 1) result.Type = parameterType;
                 else result.Parameters.Add(new MemberModel(parameterName, parameterType, FlagType.ParameterVar, 0));
             }
-            if (result.Parameters.Count == 1 && result.Parameters[0].Type == voidKey)
-                result.Parameters.Clear();
+            if (result.Parameters.Count == 1 && result.Parameters[0].Type == voidKey) result.Parameters.Clear();
             return result;
+        }
+
+        internal static bool IsFunctionType(string type)
+        {
+            if (string.IsNullOrEmpty(type)) return false;
+            type = CleanFunctionType(type);
+            var genCount = 0;
+            var groupCount = 0;
+            var length = type.Length - 1;
+            for (var i = 0; i < length; i++)
+            {
+                var c = type[i];
+                if (c == '(' || c == '[' || c == '{') groupCount++;
+                else if (c == ')' || c == ']' || c == '}') groupCount--;
+                else if (groupCount == 0)
+                {
+                    if (c == '<') genCount++;
+                    else if (c == '>' && type[i - 1] != '-') genCount--;
+                    else if (genCount == 0 && c == '-' && i + 1 is int p && p < length && type[p] == '>')
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        static string CleanFunctionType(string type)
+        {
+            if (!string.IsNullOrEmpty(type))
+            {
+                var parCount = 0;
+                while (type[0] == '(' && type[type.Length - 1] == ')')
+                {
+                    foreach (var c in type)
+                    {
+                        if (c == '(') parCount++;
+                        else if (c == ')') parCount--;
+                        else if (parCount == 0) return type;
+                    }
+                    type = type.Substring(1, type.Length - 2);
+                }
+            }
+            return type;
         }
     }
 
